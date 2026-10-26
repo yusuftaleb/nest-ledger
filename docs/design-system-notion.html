@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nest Ledger</title>
+<style>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap");
+:root { --bg: #ffffff; --surface: #ffffff; --surface-sunk: #f6f5f4; --raised: #ffffff; --line: #e5e3df; --line-strong: #c8c4be; --ink: #1a1a1a; --ink-muted: #5d5b54; --ink-deep: #111111; --on-ink: #ffffff; --accent: #5645d4; --accent-text: #5645d4; --accent-soft: #e6e0f5; --on-accent: #ffffff; --focus: var(--accent-text); --link: #0075de; --navy: #0a1530; --highlight: #f9e79f; --good: #18794e; --good-soft: #d9f3e1; --warn: #793400; --warn-soft: #ffe8d4; --over: #c92a2a; --over-soft: #fde0ec; --cat-1: #1aae39; --cat-2: #dd5b00; --cat-3: #2a9d99; --cat-4: #7b3ff2; --cat-5: #d9a800; --cat-6: #ff64c8; --cat-7: #3d8fd6; --cat-8: #a4a097; --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px; --space-6: 24px; --space-8: 32px; --radius-xs: 4px; --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-pill: 9999px; --font-display: "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, sans-serif; --font-sans: "Inter", -apple-system, system-ui, "Segoe UI", Helvetica, sans-serif; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #191919; --surface: #202020; --surface-sunk: #2a2a2a; --raised: #3a3a3a; --line: #2f2f2f; --line-strong: #484848; --ink: #ebebea; --ink-muted: #9b9a97; --ink-deep: #ebebea; --on-ink: #191919; --accent: #5645d4; --accent-text: #a69cf5; --accent-soft: #2b2547; --on-accent: #ffffff; --focus: var(--accent-text); --link: #529cca; --navy: #1a2a52; --highlight: #f9e79f; --good: #4dab6d; --good-soft: #1c3828; --warn: #ffa344; --warn-soft: #3d2612; --over: #ff7369; --over-soft: #3f1d1d; --cat-1: #4dab6d; --cat-2: #ffa344; --cat-3: #4fc1bc; --cat-4: #a47cf5; --cat-5: #f5d75e; --cat-6: #ff8fd6; --cat-7: #6bb0eb; --cat-8: #8a877f; color-scheme: dark; } }
+:root[data-theme="dark"] { --bg: #191919; --surface: #202020; --surface-sunk: #2a2a2a; --raised: #3a3a3a; --line: #2f2f2f; --line-strong: #484848; --ink: #ebebea; --ink-muted: #9b9a97; --ink-deep: #ebebea; --on-ink: #191919; --accent: #5645d4; --accent-text: #a69cf5; --accent-soft: #2b2547; --on-accent: #ffffff; --focus: var(--accent-text); --link: #529cca; --navy: #1a2a52; --highlight: #f9e79f; --good: #4dab6d; --good-soft: #1c3828; --warn: #ffa344; --warn-soft: #3d2612; --over: #ff7369; --over-soft: #3f1d1d; --cat-1: #4dab6d; --cat-2: #ffa344; --cat-3: #4fc1bc; --cat-4: #a47cf5; --cat-5: #f5d75e; --cat-6: #ff8fd6; --cat-7: #6bb0eb; --cat-8: #8a877f; color-scheme: dark; }
+
+body { margin: 0; font-family: var(--font-sans); font-size: 16px; line-height: 25px; background: var(--bg); color: var(--ink); font-feature-settings: "cv11", "ss01"; }
+.nl-stack { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4); }
+.nl-row { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; padding: var(--space-4); }
+.nl-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg); overflow: hidden; }
+
+.nl-btn { font: inherit; font-size: 14px; line-height: 18px; font-weight: 500; border: 0; cursor: pointer; border-radius: var(--radius-md); display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); white-space: nowrap; }
+.nl-btn-md { min-height: 40px; padding: 10px 18px; }
+.nl-btn-sm { min-height: 32px; padding: 6px 12px; }
+.nl-btn-primary { background: var(--accent); color: var(--on-accent); }
+.nl-btn-secondary { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.nl-btn-dark { background: var(--ink-deep); color: var(--on-ink); }
+.nl-btn-ghost { background: transparent; color: var(--ink); border-radius: var(--radius-sm); padding-inline: 12px; }
+.nl-btn:focus-visible, .nl-chip:focus-visible, .nl-seg button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.nl-btn:disabled { background: var(--line); color: var(--ink-muted); cursor: default; box-shadow: none; }
+
+.nl-amt { font-variant-numeric: tabular-nums; font-weight: 500; white-space: nowrap; }
+.nl-amt-out, .nl-amt-zero { color: var(--ink); }
+.nl-amt-in { color: var(--good); }
+.nl-amt-hero { font-family: var(--font-display); font-size: 40px; line-height: 44px; font-weight: 600; letter-spacing: -1px; }
+
+/* category filter = Notion pill tab: outlined at rest, solid ink when active */
+.nl-chip { font: inherit; font-size: 14px; line-height: 18px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px 7px 12px; border-radius: var(--radius-pill); border: 1px solid var(--line); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.nl-chip[aria-pressed="true"] { background: var(--ink-deep); border-color: var(--ink-deep); color: var(--on-ink); }
+.nl-chip .nl-amt { font-size: 14px; color: inherit; opacity: .8; }
+.nl-dot { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+
+/* status = Notion tag: soft tint, deep text, 6px corners */
+.nl-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; line-height: 18px; font-weight: 600; padding: 1px 8px; border-radius: var(--radius-sm); }
+.nl-badge-verified { background: var(--good-soft); color: var(--good); }
+.nl-badge-review { background: var(--warn-soft); color: var(--warn); }
+.nl-badge-over { background: var(--over-soft); color: var(--over); }
+.nl-badge-draft { background: var(--surface-sunk); color: var(--ink-muted); }
+
+/* period switch = Apple-style segmented control, drawn in Notion's 8px/6px rectangles */
+.nl-seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-sunk); border: 1px solid var(--line); border-radius: var(--radius-md); }
+.nl-seg button { font: inherit; font-size: 14px; line-height: 18px; font-weight: 500; min-height: 32px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--radius-sm); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.nl-seg button[aria-selected="true"] { background: var(--raised); border-color: var(--line); color: var(--ink); font-weight: 600; }
+
+.nl-budget { display: flex; flex-direction: column; gap: 6px; padding: var(--space-3) var(--space-4); }
+.nl-budget + .nl-budget { border-top: 1px solid var(--line); }
+.nl-budget-top { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-2); }
+.nl-budget-name { display: inline-flex; align-items: center; gap: var(--space-2); font-weight: 500; }
+.nl-budget-left { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.nl-budget-left.ok { color: var(--good); }
+.nl-budget-left.warn { color: var(--warn); }
+.nl-budget-left.over { color: var(--over); }
+.nl-track { height: 6px; border-radius: var(--radius-xs); background: var(--surface-sunk); overflow: hidden; }
+.nl-fill { height: 100%; border-radius: var(--radius-xs); }
+.nl-fill.ok { background: var(--cat-1); }
+.nl-fill.warn { background: var(--cat-2); }
+.nl-fill.over { background: var(--over); }
+.nl-budget-meta { font-size: 13px; line-height: 18px; color: var(--ink-muted); font-variant-numeric: tabular-nums; }
+
+.nl-tx { display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-3); padding: var(--space-3) var(--space-4); }
+.nl-tx-has-icon { grid-template-columns: 36px 1fr auto; }
+.nl-tx-icon { grid-row: span 2; align-self: start; padding-top: 2px; }
+.nl-tx-has-icon .nl-tx-split, .nl-tx-has-icon .nl-tx-cats { grid-column: 2 / -1; }
+.nl-tx + .nl-tx { border-top: 1px solid var(--line); }
+.nl-tx-merchant { font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nl-tx-meta { font-size: 13px; line-height: 18px; color: var(--ink-muted); min-width: 0; }
+.nl-tx-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; grid-row: span 2; }
+.nl-tx-split { grid-column: 1 / -1; display: flex; height: 4px; border-radius: var(--radius-xs); overflow: hidden; gap: 2px; margin-top: 8px; }
+.nl-tx-cats { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px var(--space-3); font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.nl-tx-cats span { display: inline-flex; align-items: center; gap: var(--space-1); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .nl-btn, .nl-chip, .nl-seg button { transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+  .nl-btn:active { transform: scale(0.98); }
+  .nl-fill { transition: width .2s ease; }
+}
+
+/* icons = Lucide, 1.75 stroke, currentColor */
+.nl-icon { display: block; flex: none; }
+.nl-caticon { display: inline-grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-md); color: var(--ink); background: color-mix(in srgb, var(--c) 18%, var(--surface)); }
+.nl-caticon-sm { width: 28px; height: 28px; border-radius: var(--radius-sm); }
+
+/* bottom tab bar: muted icons, ink when current, one purple Add square */
+.nl-tabbar { display: grid; grid-template-columns: repeat(5, 1fr); align-items: center; padding: 6px var(--space-2) calc(6px + env(safe-area-inset-bottom)); background: var(--surface); border-top: 1px solid var(--line); }
+.nl-tab { font: inherit; display: flex; flex-direction: column; align-items: center; gap: 2px; min-height: 48px; justify-content: center; padding: 0; border: 0; background: transparent; color: var(--ink-muted); font-size: 11px; line-height: 14px; font-weight: 500; cursor: pointer; border-radius: var(--radius-sm); }
+.nl-tab[aria-current="page"] { color: var(--ink); font-weight: 600; }
+.nl-tab-add { justify-self: center; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: var(--radius-md); background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.nl-tab:focus-visible, .nl-tab-add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+body { padding-block: 0 48px; }
+.page { max-width: 960px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding-block: 16px; }
+.top strong { font-family: var(--font-display); font-size: 17px; }
+.cover-wrap { overflow: hidden; border-radius: var(--radius-md); background: var(--bg); border: 1px solid var(--line); }
+.cover-scale { width: 960px; transform-origin: top left; }
+
+  
+  
+  .cover { position: relative; height: 320px; overflow: hidden; }
+  .art { position: absolute; top: 0; left: 480px; width: 480px; height: 320px; overflow: hidden; }
+  .art svg { display: block; width: 480px; height: 320px; }
+  .pine { fill: var(--navy); }
+  .baby { fill: var(--highlight); }
+  .sky { fill: var(--cat-6); }
+  .deep { fill: var(--accent); }
+  .blk { rx: var(--radius-md); }
+  .bar { rx: var(--radius-sm); }
+  .bar.cut { fill: var(--bg); }
+  .bar.lt { fill: var(--on-accent); }
+  .words { position: absolute; left: var(--space-6); bottom: var(--space-6); max-width: 440px; }
+  .name { margin: 0; font-family: var(--font-display); font-size: 112px; line-height: .95; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); }
+  .tag { margin: var(--space-2) 0 0 4px; font-size: 14px; line-height: 20px; color: var(--ink-muted); }
+
+h2 { font-family: var(--font-display); font-size: 24px; line-height: 30px; margin: 48px 0 16px; text-wrap: balance; }
+h3 { font-size: 17px; line-height: 24px; margin: 24px 0 8px; }
+h4 { font-size: 15px; margin: 16px 0 8px; }
+p, li { max-width: 68ch; }
+code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; background: var(--surface-sunk); padding: 1px 5px; border-radius: 4px; }
+.tbl { overflow-x: auto; }
+table { border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.sw { display: flex; gap: 12px; padding: 12px; background: var(--surface); border-radius: var(--radius-sm); }
+.sw > div { min-width: 0; }
+.sw p { margin: 4px 0 0; font-size: 13px; line-height: 18px; color: var(--ink-muted); }
+.sw .hex { font-variant-numeric: tabular-nums; font-size: 12px; }
+.chip { width: 40px; height: 40px; border-radius: var(--radius-sm); flex: none; border: 1px solid var(--line); }
+.ty { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; padding-block: 12px; border-bottom: 1px solid var(--line); align-items: baseline; }
+.ty-meta { font-size: 13px; color: var(--ink-muted); }
+.ty-meta p { margin: 4px 0 0; }
+.sc { padding-block: 8px; font-size: 14px; }
+.sc p { margin: 2px 0 0; font-size: 13px; color: var(--ink-muted); }
+.sc .bar { display: block; height: 12px; background: var(--accent, var(--pine)); border-radius: 3px; margin-bottom: 4px; }
+.sc .box { display: inline-block; width: 40px; height: 40px; background: var(--accent-soft, var(--pine-soft)); border: 2px solid var(--accent, var(--pine)); vertical-align: middle; margin-right: 8px; }
+.comp { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; padding-block: 16px; border-top: 1px solid var(--line); }
+.comp .demo { background: var(--bg); border: 1px solid var(--line); border-radius: var(--radius-md); min-width: 0; }
+.comp .guide p { margin: 0 0 8px; }
+@media (max-width: 640px) { .comp, .ty { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="top"><strong>Nest Ledger</strong><span id="theme-host"></span></div>
+  <div class="cover-wrap" id="cover-wrap"><div class="cover-scale" id="cover-scale"><div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 320" width="480" height="320">
+<!--
+  blocks      navy 144x312 slab bled off the top (the brand, largest) · highlight yellow 152x192 · accent purple 168x248 bled off the right · cat-6 pink 72x64 satellite; about 40% of 960x320
+  arrangement one tall pine slab with satellites, bottoms on one line space-6 above the edge, space-4 gutters
+  pattern     budget bars, from "Budget bars, pill radius": space-2-tall pills at a space-6 pitch, cut out of the yellow block in bg and drawn on the slab in on-pine, lengths like budgets part spent
+  scales      sides in space-2 multiples; gutters space-4; pitch space-6; corners radius-md, bars rx radius-sm (half of space-2 tall bars rounded fully)
+-->
+<rect class="pine blk" x="0" y="-16" width="144" height="312" rx="14"/>
+<rect class="sky blk" x="160" y="24" width="72" height="64" rx="14"/>
+<rect class="baby blk" x="160" y="104" width="152" height="192" rx="14"/>
+<rect class="deep blk" x="328" y="48" width="168" height="248" rx="14"/>
+<rect class="bar cut" x="176" y="128" width="112" height="8" rx="4"/>
+<rect class="bar cut" x="176" y="152" width="80" height="8" rx="4"/>
+<rect class="bar cut" x="176" y="176" width="104" height="8" rx="4"/>
+<rect class="bar cut" x="176" y="200" width="56" height="8" rx="4"/>
+<rect class="bar cut" x="176" y="224" width="120" height="8" rx="4"/>
+<rect class="bar cut" x="176" y="248" width="72" height="8" rx="4"/>
+<rect class="bar lt" x="16" y="224" width="96" height="8" rx="4"/>
+<rect class="bar lt" x="16" y="248" width="64" height="8" rx="4"/>
+<rect class="bar lt" x="16" y="272" width="112" height="8" rx="4"/>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Nest Ledger</h1>
+<p class="tag">A household's money, in seconds a day.</p>
+</div>
+</div>
+</div></div>
+  <section><p>This is the Notion-style version of Nest Ledger: one household, one shared budget, in the household's own currency. It should feel like a tidy shared notebook. White pages and warm greys, rectangular buttons, colour-coded tags, and one purple button for the main action.</p><h3>Principles</h3><ul><li><strong>Purple means "do this".</strong> The solid purple button (<code>accent</code>) appears once per screen: Save, Scan receipt. Everything else is outlined, dark or plain.</li><li><strong>Tags carry meaning.</strong> Status is a soft tinted tag with deep text: mint <code>good</code> for matched or income, peach <code>warn</code> for needs review, rose <code>over</code> for over budget. Ordinary spending is plain <code>ink</code>.</li><li><strong>Flat and bordered.</strong> Cards are white with a 1px <code>line</code> and 12px corners. No shadows.</li><li><strong>Colour blocks for emphasis.</strong> Each screen may use at most one <code>navy</code> band (the monthly summary) and one <code>highlight</code> yellow card (the weekly check-in).</li><li><strong>Seconds to add.</strong> Scan, check, save.</li></ul><h3>Voice</h3><p>Plain and friendly. Short sentences, sentence case, no exclamation marks, no emoji.</p><div class="tbl"><table><thead><tr><th>Do</th><th>Don't</th></tr></thead><tbody><tr><td>"$188 left in Groceries"</td><td>"Great job! You're crushing it"</td></tr><tr><td>"Couldn't read this receipt. Try a flatter photo."</td><td>"Error 422: extraction failed"</td></tr><tr><td>"Matched to bank statement"</td><td>"Reconciliation status: true"</td></tr></tbody></table></div><h3>Money formatting</h3><ul><li>Format: <code>en-CA</code>, CAD, always two decimals: <code>$1,234.56</code>.</li><li>Spending: true minus sign (U+2212), ink: <code>−$14.50</code>.</li><li>Income: plus sign, good green: <code>+$1,140.00</code>.</li><li>Always <code>tabular-nums</code>.</li></ul><h3>Type</h3><p>Inter stands in for Notion Sans, the Inter-based face Notion uses, which isn't publicly available. Use 600 for headings, 500 for buttons, tabs and amounts, 400 for body. Body text is 16px with 1.55 line height. Headings are tracked slightly tight.</p><h3>Shape</h3><ul><li>Buttons and inputs: <code>radius-md</code> (8px) rectangles, never pills.</li><li>Cards: <code>radius-lg</code> (12px).</li><li>Tags and badges: <code>radius-sm</code> (6px).</li><li>Pills only for the category filter tabs.</li></ul><h3>Layout</h3><ul><li>Phone first: one column, a <code>space-4</code> gutter, sections <code>space-6</code> apart.</li><li>Bottom tab bar with a purple Add button.</li><li>Period switching (Month, Quarter, Year) uses a segmented control: a warm grey track with the active option raised in white.</li><li>On a laptop the content caps at 720px.</li></ul><h3>Icons</h3><p>Lucide icons (<code>lucide-react</code>), 20px with a 1.75 stroke, <code>ink-muted</code> at rest and <code>ink</code> when active. Each category has one icon, shown in <code>ink</code> on a soft tint of its colour.</p><h3>Components</h3><p><code>Button</code> (primary, secondary, dark, ghost), <code>Amount</code>, <code>CategoryChip</code>, <code>StatusBadge</code>, <code>PeriodSwitch</code>, <code>BudgetBar</code>, <code>TransactionRow</code>, <code>Icon</code>, <code>CategoryIcon</code> and <code>TabBar</code> are in <code>components/bundle.js</code> as <code>window.Nest</code>.</p></section>
+  <h2>Colour</h2><div class="grid"><div class="sw"><span class="chip" style="background:var(--bg)"></span><div><code>bg</code><p>Page canvas.</p><p class="hex">#ffffff · #191919</p></div></div><div class="sw"><span class="chip" style="background:var(--surface)"></span><div><code>surface</code><p>Cards. White on white, set apart by a 1px line only.</p><p class="hex">#ffffff · #202020</p></div></div><div class="sw"><span class="chip" style="background:var(--surface-sunk)"></span><div><code>surface-sunk</code><p>Warm grey fill: inputs, bar tracks, quiet sections.</p><p class="hex">#f6f5f4 · #2a2a2a</p></div></div><div class="sw"><span class="chip" style="background:var(--raised)"></span><div><code>raised</code><p>The active segment of the period switch: lighter than its surface-sunk track in both themes.</p><p class="hex">#ffffff · #3a3a3a</p></div></div><div class="sw"><span class="chip" style="background:var(--line)"></span><div><code>line</code><p>Card borders and row dividers.</p><p class="hex">#e5e3df · #2f2f2f</p></div></div><div class="sw"><span class="chip" style="background:var(--line-strong)"></span><div><code>line-strong</code><p>Input and secondary-button borders.</p><p class="hex">#c8c4be · #484848</p></div></div><div class="sw"><span class="chip" style="background:var(--ink)"></span><div><code>ink</code><p>Headlines, body text, spending amounts.</p><p class="hex">#1a1a1a · #ebebea</p></div></div><div class="sw"><span class="chip" style="background:var(--ink-muted)"></span><div><code>ink-muted</code><p>Dates, accounts, helper text (Notion slate). 4.5:1+ on bg and surface-sunk.</p><p class="hex">#5d5b54 · #9b9a97</p></div></div><div class="sw"><span class="chip" style="background:var(--ink-deep)"></span><div><code>ink-deep</code><p>Fill of the active pill tab and the dark button.</p><p class="hex">#111111 · #ebebea</p></div></div><div class="sw"><span class="chip" style="background:var(--on-ink)"></span><div><code>on-ink</code><p>Text on an ink-deep fill.</p><p class="hex">#ffffff · #191919</p></div></div><div class="sw"><span class="chip" style="background:var(--accent)"></span><div><code>accent</code><p>Notion purple. Fill of the one primary button per screen and the 'popular' badge.</p><p class="hex">#5645d4 · #5645d4</p></div></div><div class="sw"><span class="chip" style="background:var(--accent-text)"></span><div><code>accent-text</code><p>Purple as text or underline: active tab, ghost button, focus.</p><p class="hex">#5645d4 · #a69cf5</p></div></div><div class="sw"><span class="chip" style="background:var(--accent-soft)"></span><div><code>accent-soft</code><p>Lavender tint behind purple text.</p><p class="hex">#e6e0f5 · #2b2547</p></div></div><div class="sw"><span class="chip" style="background:var(--on-accent)"></span><div><code>on-accent</code><p>Label on a purple fill.</p><p class="hex">#ffffff · #ffffff</p></div></div><div class="sw"><span class="chip" style="background:var(--focus)"></span><div><code>focus</code><p>Focus ring and focused input border: 2px.</p><p class="hex">var(--accent-text) · var(--accent-text)</p></div></div><div class="sw"><span class="chip" style="background:var(--link)"></span><div><code>link</code><p>Inline text links only. Never a button.</p><p class="hex">#0075de · #529cca</p></div></div><div class="sw"><span class="chip" style="background:var(--navy)"></span><div><code>navy</code><p>Brand navy for the one dark band (Home summary card, cover).</p><p class="hex">#0a1530 · #1a2a52</p></div></div><div class="sw"><span class="chip" style="background:var(--highlight)"></span><div><code>highlight</code><p>Bold yellow for one high-emphasis card, e.g. the weekly check-in.</p><p class="hex">#f9e79f · #f9e79f</p></div></div><div class="sw"><span class="chip" style="background:var(--good)"></span><div><code>good</code><p>Income, money left, matched. As text on bg or good-soft.</p><p class="hex">#18794e · #4dab6d</p></div></div><div class="sw"><span class="chip" style="background:var(--good-soft)"></span><div><code>good-soft</code><p>Mint tint behind good text.</p><p class="hex">#d9f3e1 · #1c3828</p></div></div><div class="sw"><span class="chip" style="background:var(--warn)"></span><div><code>warn</code><p>80%+ of budget, needs review. As text on bg or warn-soft.</p><p class="hex">#793400 · #ffa344</p></div></div><div class="sw"><span class="chip" style="background:var(--warn-soft)"></span><div><code>warn-soft</code><p>Peach tint behind warn text.</p><p class="hex">#ffe8d4 · #3d2612</p></div></div><div class="sw"><span class="chip" style="background:var(--over)"></span><div><code>over</code><p>Over budget or failed. Never for ordinary spending.</p><p class="hex">#c92a2a · #ff7369</p></div></div><div class="sw"><span class="chip" style="background:var(--over-soft)"></span><div><code>over-soft</code><p>Rose tint behind over text.</p><p class="hex">#fde0ec · #3f1d1d</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-1)"></span><div><code>cat-1</code><p>Groceries. Fills and dots only.</p><p class="hex">#1aae39 · #4dab6d</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-2)"></span><div><code>cat-2</code><p>Baby. Fills and dots only.</p><p class="hex">#dd5b00 · #ffa344</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-3)"></span><div><code>cat-3</code><p>Rent &amp; utilities. Fills and dots only.</p><p class="hex">#2a9d99 · #4fc1bc</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-4)"></span><div><code>cat-4</code><p>Transportation. Fills and dots only.</p><p class="hex">#7b3ff2 · #a47cf5</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-5)"></span><div><code>cat-5</code><p>Eating out. Fills and dots only.</p><p class="hex">#d9a800 · #f5d75e</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-6)"></span><div><code>cat-6</code><p>Health &amp; personal care. Fills and dots only.</p><p class="hex">#ff64c8 · #ff8fd6</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-7)"></span><div><code>cat-7</code><p>Education. Fills and dots only.</p><p class="hex">#3d8fd6 · #6bb0eb</p></div></div><div class="sw"><span class="chip" style="background:var(--cat-8)"></span><div><code>cat-8</code><p>Other. Fills and dots only.</p><p class="hex">#a4a097 · #8a877f</p></div></div></div>
+  <h2>Type</h2><div class="ty"><div class="ty-sample" style="font-family:var(--font-display);font-size:40px;line-height:44px;font-weight:600;letter-spacing:-1px">$2,148.60</div><div class="ty-meta"><code>hero-amount</code> 40px / 44px · 600<p>The big number on Home. Tabular figures.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-display);font-size:28px;line-height:35px;font-weight:600;letter-spacing:-0.5px">October</div><div class="ty-meta"><code>title</code> 28px / 35px · 600<p>Screen titles.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-display);font-size:18px;line-height:25px;font-weight:600;letter-spacing:normal">Budgets</div><div class="ty-meta"><code>heading</code> 18px / 25px · 600<p>Section headings.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-sans);font-size:16px;line-height:25px;font-weight:400;letter-spacing:normal">Superstore</div><div class="ty-meta"><code>body</code> 16px / 25px · 400<p>Default text.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-sans);font-size:16px;line-height:25px;font-weight:500;letter-spacing:normal">−$114.20</div><div class="ty-meta"><code>body-medium</code> 16px / 25px · 500<p>Merchant names and amounts.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-sans);font-size:14px;line-height:18px;font-weight:500;letter-spacing:normal">Save</div><div class="ty-meta"><code>label</code> 14px / 18px · 500<p>Buttons, tabs, chips.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-sans);font-size:13px;line-height:18px;font-weight:400;letter-spacing:normal">Oct 14, Everyday chequing</div><div class="ty-meta"><code>caption</code> 13px / 18px · 400<p>Meta lines.</p></div></div><div class="ty"><div class="ty-sample" style="font-family:var(--font-sans);font-size:13px;line-height:18px;font-weight:600;letter-spacing:normal">Matched</div><div class="ty-meta"><code>caption-bold</code> 13px / 18px · 600<p>Badges and budget remaining.</p></div></div>
+  <h2>Spacing</h2><div class="sc"><span class="bar" style="width:4px"></span><code>space-1</code> 4px<p>Dot to label.</p></div><div class="sc"><span class="bar" style="width:8px"></span><code>space-2</code> 8px<p>Between chips.</p></div><div class="sc"><span class="bar" style="width:12px"></span><code>space-3</code> 12px<p>Row vertical padding.</p></div><div class="sc"><span class="bar" style="width:16px"></span><code>space-4</code> 16px<p>Card padding and screen gutter.</p></div><div class="sc"><span class="bar" style="width:24px"></span><code>space-6</code> 24px<p>Between sections.</p></div><div class="sc"><span class="bar" style="width:32px"></span><code>space-8</code> 32px<p>Large card padding.</p></div>
+  <h2>Radius</h2><div class="sc"><span class="box" style="border-radius:4px"></span><code>radius-xs</code> 4px<p>Budget bars.</p></div><div class="sc"><span class="box" style="border-radius:6px"></span><code>radius-sm</code> 6px<p>Tags and badges.</p></div><div class="sc"><span class="box" style="border-radius:8px"></span><code>radius-md</code> 8px<p>Buttons and inputs. Rectangles, not pills.</p></div><div class="sc"><span class="box" style="border-radius:12px"></span><code>radius-lg</code> 12px<p>Every card.</p></div><div class="sc"><span class="box" style="border-radius:9999px"></span><code>radius-pill</code> 9999px<p>Category filter tabs only.</p></div>
+  <h2>Components</h2>
+  <div class="comp"><div class="guide"><h3>Button</h3><p>8px rectangles, never pills. <strong>primary</strong> is Notion purple, used once per screen for the main action: "Save", "Scan receipt". <strong>secondary</strong> has an outline for a second choice. <strong>dark</strong> is near-black for strong utility actions like "Copy last month". <strong>ghost</strong> is plain text for "Skip" or "Cancel". Labels are a verb in sentence case, at most three words.</p></div><div class="demo"><div id="root-Button" class="nl-row"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>Amount</h3><p>Shows a CAD amount from integer cents with tabular figures. Spending is ink with a true minus sign (−$114.20), income is good green with a plus (+$1,140.00). <code>size="hero"</code> is the one big number at the top of the dashboard. Never colour ordinary spending red.</p></div><div class="demo"><div id="root-Amount" class="nl-stack"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>CategoryChip</h3><p>A Notion-style pill tab for picking or filtering a category. At rest it is outlined with muted text; when selected it turns solid ink. A small square colour mark shows the category. It's used on the receipt review screen, where tapping a chip moves the selected items to that category, and in transaction filters. Pass the category's slot (1 to 8) as <code>color</code>.</p></div><div class="demo"><div id="root-CategoryChip" class="nl-row"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>StatusBadge</h3><p>A Notion tag showing the state of a transaction or budget: <strong>Matched</strong> (mint), <strong>Needs review</strong> (peach), <strong>Over budget</strong> (rose), <strong>Draft</strong> (grey). Each is a soft tint with deep text and 6px corners. The wording is fixed so each state always reads the same.</p></div><div class="demo"><div id="root-StatusBadge" class="nl-row"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>PeriodSwitch</h3><p>A segmented control for Month / Quarter / Year on the dashboard. It takes Apple's layout (one sunken track with the active option raised inside it) and draws it in Notion's style: a warm grey track with 8px corners, 6px segments, and the active segment raised (white, or a lighter grey in dark mode) with a hairline border and 600 weight. Pair it with ‹ › arrows to step between periods. Controlled with <code>value</code> + <code>onChange</code>, or uncontrolled with <code>defaultValue</code>.</p></div><div class="demo"><div id="root-PeriodSwitch" class="nl-row"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>BudgetBar</h3><p>A category budget for the current period, showing what's left in large text and spent of budget in small text. The bar is green below 80%, orange from 80%, and red past 100%; the state is also stated in words ("$32 over"), not only by colour. Stack them inside one card; they divide themselves with hairlines.</p></div><div class="demo"><div style="padding:16px"><div id="root-BudgetBar" class="nl-card"></div></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>TransactionRow</h3><p>One transaction in a list: merchant, date · account, amount, and a status badge when it isn't routine. A receipt split across categories gets a thin proportional bar and a per-category breakdown, so one Superstore trip reads as Groceries + Baby + Household at a glance. Stack rows inside one card.</p></div><div class="demo"><div style="padding:16px"><div id="root-TransactionRow" class="nl-card"></div></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>Icon</h3><p>Icons come from Lucide (lucide.dev, ISC licence), the same set shadcn/ui uses. In the app, import them from <code>lucide-react</code>; this page inlines the few it needs.</p><ul><li><strong>Size and stroke:</strong> 20px with a 1.75 stroke by default; 16px in small buttons, 14px with a 2 stroke inside badges, 22px in the tab bar.</li><li><strong>Colour:</strong> icons take <code>currentColor</code>. Plain icons are <code>ink-muted</code>; they turn <code>ink</code> when active.</li><li><strong>One icon per category.</strong> Use the same icon everywhere the category appears: transaction rows, budget lists, the receipt review.</li><li>Icons sit next to a text label. An icon on its own (like the Add button) needs an <code>aria-label</code>.</li></ul></div><div class="demo">
+<style>
+  .ic-sec { padding: var(--space-4) var(--space-4) 0; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink-muted); }
+  .ic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); }
+  .ic-it { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; line-height: 18px; min-width: 0; }
+  .ic-it span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ic-act { color: var(--ink-muted); }
+</style><div id="root-Icon"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>CategoryIcon</h3><p>Each category's Lucide glyph in <code>ink</code> on a soft tint of the category colour (<code>--cat-N</code> at 18%), in an 8px square (36px), or a 6px square (28px) with <code>size="sm"</code>. The colour is only in the tint, so the glyph stays readable even for the yellow category. Use the same icon everywhere the category appears: transaction rows, budget lists and the receipt review.</p></div><div class="demo">
+<style>
+  .ic-sec { padding: var(--space-4) var(--space-4) 0; font-size: 13px; line-height: 18px; font-weight: 600; color: var(--ink-muted); }
+  .ic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); }
+  .ic-it { display: flex; align-items: center; gap: var(--space-2); font-size: 14px; line-height: 18px; min-width: 0; }
+  .ic-it span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ic-act { color: var(--ink-muted); }
+</style><div id="root-CategoryIcon"></div>
+</div></div>
+  <div class="comp"><div class="guide"><h3>TabBar</h3><p>The bottom navigation on phones: Home, Transactions, Plan and Settings, with the purple Add square in the middle. Tabs are Lucide icons with a small label, <code>ink-muted</code> at rest and <code>ink</code> with 600 weight on the current page. Add is the one purple control on the bar and opens Scan, Quick add and Import CSV. It leaves room for the iPhone home indicator with <code>safe-area-inset-bottom</code>. On a laptop the same items move to a left sidebar.</p></div><div class="demo"><div style="padding:16px"><div id="root-TabBar" class="nl-card" style="max-width:420px;margin:0 auto"></div></div>
+</div></div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>
+/* @ds-bundle: {"format":4,"namespace":"Nest","components":[{"name":"Button"},{"name":"Amount"},{"name":"CategoryChip"},{"name":"StatusBadge"},{"name":"PeriodSwitch"},{"name":"BudgetBar"},{"name":"TransactionRow"},{"name":"Icon"},{"name":"CategoryIcon"},{"name":"TabBar"}]} */
+(function () {
+  var R = window.React, h = R.createElement;
+  function cx() { return Array.prototype.filter.call(arguments, Boolean).join(' '); }
+  var fmt = new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' });
+  function money(cents, plus) {
+    var s = fmt.format(Math.abs(cents) / 100);
+    if (cents < 0) return '−' + s;
+    if (plus && cents > 0) return '+' + s;
+    return s;
+  }
+  function omit(p, keys) { var o = {}; for (var k in p) if (keys.indexOf(k) < 0) o[k] = p[k]; return o; }
+  function catVar(c) { return 'var(--cat-' + (c || 8) + ')'; }
+
+  /* Lucide v0.460.0 (ISC): inner SVG markup on a 24x24 grid */
+  var ICONS = {
+    "arrow-left-right": "<path d=\"M8 3 4 7l4 4\"/><path d=\"M4 7h16\"/><path d=\"m16 21 4-4-4-4\"/><path d=\"M20 17H4\"/>",
+    "baby": "<path d=\"M9 12h.01\"/><path d=\"M15 12h.01\"/><path d=\"M10 16c.5.3 1.2.5 2 .5s1.5-.2 2-.5\"/><path d=\"M19 6.3a9 9 0 0 1 1.8 3.9 2 2 0 0 1 0 3.6 9 9 0 0 1-17.6 0 2 2 0 0 1 0-3.6A9 9 0 0 1 12 3c2 0 3.5 1.1 3.5 2.5s-.9 2.5-2 2.5c-.8 0-1.5-.4-1.5-1\"/>",
+    "banknote": "<rect width=\"20\" height=\"12\" x=\"2\" y=\"6\" rx=\"2\"/><circle cx=\"12\" cy=\"12\" r=\"2\"/><path d=\"M6 12h.01M18 12h.01\"/>",
+    "bell": "<path d=\"M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9\"/><path d=\"M10.3 21a1.94 1.94 0 0 0 3.4 0\"/>",
+    "bus": "<path d=\"M8 6v6\"/><path d=\"M15 6v6\"/><path d=\"M2 12h19.6\"/><path d=\"M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5C20.1 6.8 19.1 6 18 6H4a2 2 0 0 0-2 2v10h3\"/><circle cx=\"7\" cy=\"18\" r=\"2\"/><path d=\"M9 18h5\"/><circle cx=\"16\" cy=\"18\" r=\"2\"/>",
+    "calendar-range": "<rect width=\"18\" height=\"18\" x=\"3\" y=\"4\" rx=\"2\"/><path d=\"M16 2v4\"/><path d=\"M3 10h18\"/><path d=\"M8 2v4\"/><path d=\"M17 14h-6\"/><path d=\"M13 18H7\"/><path d=\"M7 14h.01\"/><path d=\"M17 18h.01\"/>",
+    "camera": "<path d=\"M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z\"/><circle cx=\"12\" cy=\"13\" r=\"3\"/>",
+    "chevron-left": "<path d=\"m15 18-6-6 6-6\"/>",
+    "chevron-right": "<path d=\"m9 18 6-6-6-6\"/>",
+    "circle-alert": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><line x1=\"12\" x2=\"12\" y1=\"8\" y2=\"12\"/><line x1=\"12\" x2=\"12.01\" y1=\"16\" y2=\"16\"/>",
+    "circle-check": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"m9 12 2 2 4-4\"/>",
+    "circle-ellipsis": "<circle cx=\"12\" cy=\"12\" r=\"10\"/><path d=\"M17 12h.01\"/><path d=\"M12 12h.01\"/><path d=\"M7 12h.01\"/>",
+    "credit-card": "<rect width=\"20\" height=\"14\" x=\"2\" y=\"5\" rx=\"2\"/><line x1=\"2\" x2=\"22\" y1=\"10\" y2=\"10\"/>",
+    "file-up": "<path d=\"M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z\"/><path d=\"M14 2v4a2 2 0 0 0 2 2h4\"/><path d=\"M12 12v6\"/><path d=\"m15 15-3-3-3 3\"/>",
+    "gift": "<rect x=\"3\" y=\"8\" width=\"18\" height=\"4\" rx=\"1\"/><path d=\"M12 8v13\"/><path d=\"M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7\"/><path d=\"M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5\"/>",
+    "graduation-cap": "<path d=\"M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z\"/><path d=\"M22 10v6\"/><path d=\"M6 12.5V16a6 3 0 0 0 12 0v-3.5\"/>",
+    "hand-coins": "<path d=\"M11 15h2a2 2 0 1 0 0-4h-3c-.6 0-1.1.2-1.4.6L3 17\"/><path d=\"m7 21 1.6-1.4c.3-.4.8-.6 1.4-.6h4c1.1 0 2.1-.4 2.8-1.2l4.6-4.4a2 2 0 0 0-2.75-2.91l-4.2 3.9\"/><path d=\"m2 16 6 6\"/><circle cx=\"16\" cy=\"9\" r=\"2.9\"/><circle cx=\"6\" cy=\"5\" r=\"3\"/>",
+    "heart-pulse": "<path d=\"M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z\"/><path d=\"M3.22 12H9.5l.5-1 2 4.5 2-7 1.5 3.5h5.27\"/>",
+    "house": "<path d=\"M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8\"/><path d=\"M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z\"/>",
+    "keyboard": "<path d=\"M10 8h.01\"/><path d=\"M12 12h.01\"/><path d=\"M14 8h.01\"/><path d=\"M16 12h.01\"/><path d=\"M18 8h.01\"/><path d=\"M6 8h.01\"/><path d=\"M7 16h10\"/><path d=\"M8 12h.01\"/><rect width=\"20\" height=\"16\" x=\"2\" y=\"4\" rx=\"2\"/>",
+    "landmark": "<line x1=\"3\" x2=\"21\" y1=\"22\" y2=\"22\"/><line x1=\"6\" x2=\"6\" y1=\"18\" y2=\"11\"/><line x1=\"10\" x2=\"10\" y1=\"18\" y2=\"11\"/><line x1=\"14\" x2=\"14\" y1=\"18\" y2=\"11\"/><line x1=\"18\" x2=\"18\" y1=\"18\" y2=\"11\"/><polygon points=\"12 2 20 7 4 7\"/>",
+    "list": "<path d=\"M3 12h.01\"/><path d=\"M3 18h.01\"/><path d=\"M3 6h.01\"/><path d=\"M8 12h13\"/><path d=\"M8 18h13\"/><path d=\"M8 6h13\"/>",
+    "piggy-bank": "<path d=\"M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z\"/><path d=\"M2 9v1c0 1.1.9 2 2 2h1\"/><path d=\"M16 11h.01\"/>",
+    "plus": "<path d=\"M5 12h14\"/><path d=\"M12 5v14\"/>",
+    "popcorn": "<path d=\"M18 8a2 2 0 0 0 0-4 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0-4 0 2 2 0 0 0 0 4\"/><path d=\"M10 22 9 8\"/><path d=\"m14 22 1-14\"/><path d=\"M20 8c.5 0 .9.4.8 1l-2.6 12c-.1.5-.7 1-1.2 1H7c-.6 0-1.1-.4-1.2-1L3.2 9c-.1-.6.3-1 .8-1Z\"/>",
+    "receipt": "<path d=\"M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z\"/><path d=\"M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8\"/><path d=\"M12 17.5v-11\"/>",
+    "repeat": "<path d=\"m17 2 4 4-4 4\"/><path d=\"M3 11v-1a4 4 0 0 1 4-4h14\"/><path d=\"m7 22-4-4 4-4\"/><path d=\"M21 13v1a4 4 0 0 1-4 4H3\"/>",
+    "search": "<circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/>",
+    "settings": "<path d=\"M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z\"/><circle cx=\"12\" cy=\"12\" r=\"3\"/>",
+    "shirt": "<path d=\"M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z\"/>",
+    "shopping-cart": "<circle cx=\"8\" cy=\"21\" r=\"1\"/><circle cx=\"19\" cy=\"21\" r=\"1\"/><path d=\"M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12\"/>",
+    "spray-can": "<path d=\"M3 3h.01\"/><path d=\"M7 5h.01\"/><path d=\"M11 7h.01\"/><path d=\"M3 7h.01\"/><path d=\"M7 9h.01\"/><path d=\"M3 11h.01\"/><rect width=\"4\" height=\"4\" x=\"15\" y=\"5\"/><path d=\"m19 9 2 2v10c0 .6-.4 1-1 1h-6c-.6 0-1-.4-1-1V11l2-2\"/><path d=\"m13 14 8-2\"/><path d=\"m13 19 8-2\"/>",
+    "utensils": "<path d=\"M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2\"/><path d=\"M7 2v20\"/><path d=\"M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7\"/>",
+    "wifi": "<path d=\"M12 20h.01\"/><path d=\"M2 8.82a15 15 0 0 1 20 0\"/><path d=\"M5 12.859a10 10 0 0 1 14 0\"/><path d=\"M8.5 16.429a5 5 0 0 1 7 0\"/>"
+  };
+
+  function Icon(p) {
+    var size = p.size || 20;
+    return h('svg', {
+      className: cx('nl-icon', p.className), width: size, height: size, viewBox: '0 0 24 24', fill: 'none',
+      stroke: 'currentColor', strokeWidth: p.strokeWidth || 1.75, strokeLinecap: 'round', strokeLinejoin: 'round',
+      'aria-hidden': p.label ? null : 'true', role: p.label ? 'img' : null, 'aria-label': p.label || null,
+      dangerouslySetInnerHTML: { __html: ICONS[p.name] || ICONS['circle-ellipsis'] }
+    });
+  }
+
+  /* category icon = Lucide glyph in ink on a soft tint of the category colour */
+  function CategoryIcon(p) {
+    return h('span', { className: cx('nl-caticon', p.size === 'sm' && 'nl-caticon-sm'), style: { '--c': catVar(p.color) } },
+      h(Icon, { name: p.icon, size: p.size === 'sm' ? 16 : 18 }));
+  }
+
+  function Button(p) {
+    return h('button', Object.assign({ type: 'button' }, omit(p, ['variant', 'size', 'className', 'icon', 'children']), {
+      className: cx('nl-btn', 'nl-btn-' + (p.variant || 'quiet'), 'nl-btn-' + (p.size || 'md'), p.className)
+    }), p.icon ? h(Icon, { name: p.icon, size: p.size === 'sm' ? 16 : 18 }) : null, p.children);
+  }
+
+  function Amount(p) {
+    var c = p.cents || 0, kind = c > 0 ? 'in' : c < 0 ? 'out' : 'zero';
+    return h('span', { className: cx('nl-amt', 'nl-amt-' + kind, p.size === 'hero' && 'nl-amt-hero') }, money(c, p.showPlus !== false));
+  }
+
+  function CategoryChip(p) {
+    return h('button', { type: 'button', className: 'nl-chip', 'aria-pressed': p.selected ? 'true' : 'false', onClick: p.onClick },
+      h('span', { className: 'nl-dot', style: { background: catVar(p.color) } }),
+      p.name,
+      p.cents != null ? h('span', { className: 'nl-amt' }, money(Math.abs(p.cents))) : null);
+  }
+
+  var BADGE = { verified: 'Matched', review: 'Needs review', over: 'Over budget', draft: 'Draft' };
+  var BADGE_ICON = { verified: 'circle-check', review: 'circle-alert', over: 'circle-alert' };
+  function StatusBadge(p) {
+    var s = p.status || 'draft';
+    return h('span', { className: 'nl-badge nl-badge-' + s },
+      BADGE_ICON[s] ? h(Icon, { name: BADGE_ICON[s], size: 14, strokeWidth: 2 }) : null, p.children || BADGE[s]);
+  }
+
+  function PeriodSwitch(p) {
+    var opts = p.options || ['Month', 'Quarter', 'Year'];
+    var st = R.useState(p.defaultValue || opts[0]);
+    var value = p.value != null ? p.value : st[0];
+    return h('div', { className: 'nl-seg', role: 'tablist', 'aria-label': p.label || 'Period' },
+      opts.map(function (o) {
+        return h('button', {
+          key: o, type: 'button', role: 'tab', 'aria-selected': o === value ? 'true' : 'false',
+          onClick: function () { st[1](o); if (p.onChange) p.onChange(o); }
+        }, o);
+      }));
+  }
+
+  function BudgetBar(p) {
+    var spent = p.spentCents || 0, budget = p.budgetCents || 0;
+    var pct = budget > 0 ? spent / budget : 0;
+    var state = pct > 1 ? 'over' : pct >= 0.8 ? 'warn' : 'ok';
+    var diff = budget - spent;
+    var left = diff >= 0 ? money(diff) + ' left' : money(-diff) + ' over';
+    return h('div', { className: 'nl-budget' },
+      h('div', { className: 'nl-budget-top' },
+        h('span', { className: 'nl-budget-name' }, h('span', { className: 'nl-dot', style: { background: catVar(p.color) } }), p.name),
+        h('span', { className: 'nl-budget-left ' + state }, left)),
+      h('div', { className: 'nl-track', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(pct * 100), 'aria-label': p.name },
+        h('div', { className: 'nl-fill ' + state, style: { width: Math.min(pct, 1) * 100 + '%' } })),
+      h('span', { className: 'nl-budget-meta' }, money(spent) + ' of ' + money(budget)));
+  }
+
+  function TransactionRow(p) {
+    var splits = p.splits || [];
+    var total = splits.reduce(function (a, s) { return a + Math.abs(s.cents); }, 0) || 1;
+    return h('div', { className: cx('nl-tx', p.icon && 'nl-tx-has-icon') },
+      p.icon ? h('span', { className: 'nl-tx-icon' }, h(CategoryIcon, { icon: p.icon, color: p.color })) : null,
+      h('span', { className: 'nl-tx-merchant' }, p.merchant),
+      h('div', { className: 'nl-tx-right' }, h(Amount, { cents: p.cents }), p.status ? h(StatusBadge, { status: p.status }) : null),
+      h('span', { className: 'nl-tx-meta' }, [p.date, p.account, p.by].filter(Boolean).join(' · ')),
+      splits.length > 1 ? h('div', { className: 'nl-tx-split', 'aria-hidden': 'true' },
+        splits.map(function (s, i) { return h('span', { key: i, style: { flex: Math.abs(s.cents) / total, background: catVar(s.color) } }); })) : null,
+      splits.length ? h('div', { className: 'nl-tx-cats' },
+        splits.map(function (s, i) {
+          return h('span', { key: i }, h('span', { className: 'nl-dot', style: { background: catVar(s.color) } }),
+            splits.length > 1 ? s.name + ' ' + money(Math.abs(s.cents)) : s.name);
+        })) : null);
+  }
+
+  var TABS = [['home', 'Home', 'house'], ['transactions', 'Transactions', 'list'], ['add', 'Add', 'plus'], ['plan', 'Plan', 'calendar-range'], ['settings', 'Settings', 'settings']];
+  function TabBar(p) {
+    var st = R.useState(p.defaultValue || 'home');
+    var value = p.value != null ? p.value : st[0];
+    function pick(id) { if (id !== 'add') st[1](id); if (p.onChange) p.onChange(id); }
+    return h('nav', { className: 'nl-tabbar', 'aria-label': 'Main' },
+      TABS.map(function (t) {
+        if (t[0] === 'add') return h('button', { key: t[0], type: 'button', className: 'nl-tab-add', 'aria-label': 'Add transaction', onClick: function () { pick('add'); } }, h(Icon, { name: 'plus', size: 22, strokeWidth: 2.25 }));
+        return h('button', { key: t[0], type: 'button', className: 'nl-tab', 'aria-current': value === t[0] ? 'page' : null, onClick: function () { pick(t[0]); } },
+          h(Icon, { name: t[2], size: 22 }), h('span', null, t[1]));
+      }));
+  }
+
+  window.Nest = Object.assign(window.Nest || {}, {
+    Button: Button, Amount: Amount, CategoryChip: CategoryChip, StatusBadge: StatusBadge,
+    PeriodSwitch: PeriodSwitch, BudgetBar: BudgetBar, TransactionRow: TransactionRow,
+    Icon: Icon, CategoryIcon: CategoryIcon, TabBar: TabBar, icons: Object.keys(ICONS), formatMoney: money
+  });
+})();
+
+</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-Button')).render(h(React.Fragment, null,
+  h(N.Button, { variant: 'primary', icon: 'camera' }, 'Scan receipt'),
+  h(N.Button, { variant: 'primary' }, 'Save'),
+  h(N.Button, { variant: 'secondary', icon: 'file-up' }, 'Import CSV'),
+  h(N.Button, { variant: 'ghost' }, 'Skip'),
+  h(N.Button, { variant: 'dark', size: 'sm' }, 'Copy last month')));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-Amount')).render(h(React.Fragment, null,
+  h(N.Amount, { cents: -214860, size: 'hero', showPlus: false }),
+  h('div', { className: 'nl-row', style: { padding: 0, gap: '24px' } },
+    h(N.Amount, { cents: -11420 }), h(N.Amount, { cents: 114000 }), h(N.Amount, { cents: 0 }))));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+function Demo() {
+  var s = React.useState('Baby');
+  var cats = [['Groceries', 1, 6210], ['Baby', 2, 3840], ['Household supplies', 8, 1370]];
+  return h(React.Fragment, null, cats.map(function (c) {
+    return h(N.CategoryChip, { key: c[0], name: c[0], color: c[1], cents: c[2], selected: s[0] === c[0], onClick: function () { s[1](c[0]); } });
+  }));
+}
+ReactDOM.createRoot(document.getElementById('root-CategoryChip')).render(h(Demo));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-StatusBadge')).render(h(React.Fragment, null,
+  ['verified', 'review', 'over', 'draft'].map(function (s) { return h(N.StatusBadge, { key: s, status: s }); })));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-PeriodSwitch')).render(h(N.PeriodSwitch, { defaultValue: 'Month' }));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-BudgetBar')).render(h(React.Fragment, null,
+  h(N.BudgetBar, { name: 'Groceries', color: 1, spentCents: 21240, budgetCents: 40000 }),
+  h(N.BudgetBar, { name: 'Baby', color: 2, spentCents: 17150, budgetCents: 20000 }),
+  h(N.BudgetBar, { name: 'Eating out', color: 5, spentCents: 8320, budgetCents: 5000 })));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-TransactionRow')).render(h(React.Fragment, null,
+  h(N.TransactionRow, { merchant: 'Real Canadian Superstore', cents: -11420, date: 'Oct 14', account: 'Everyday chequing', status: 'verified', icon: 'shopping-cart', color: 1,
+    splits: [{ name: 'Groceries', color: 1, cents: -6210 }, { name: 'Baby', color: 2, cents: -3840 }, { name: 'Household', color: 8, cents: -1370 }] }),
+  h(N.TransactionRow, { merchant: 'Child benefit', cents: 64850, date: 'Oct 20', account: 'Everyday chequing', icon: 'hand-coins', color: 1, splits: [{ name: 'CCB', color: 1, cents: 64850 }] }),
+  h(N.TransactionRow, { merchant: 'Tim Hortons', cents: -450, date: 'Oct 21', account: 'Rewards card', status: 'review', icon: 'utensils', color: 5, splits: [{ name: 'Eating out', color: 5, cents: -450 }] })));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+var acts = [['Scan receipt', 'camera'], ['Quick add', 'keyboard'], ['Import CSV', 'file-up'], ['Matched', 'circle-check'],
+  ['Needs review', 'circle-alert'], ['Search', 'search'], ['Alerts', 'bell'], ['Goals', 'piggy-bank'],
+  ['Net worth', 'landmark'], ['Debts', 'credit-card'], ['Previous', 'chevron-left'], ['Next', 'chevron-right']];
+ReactDOM.createRoot(document.getElementById('root-Icon')).render(h(React.Fragment, null,
+  h('div', { className: 'ic-sec' }, 'Actions and status'),
+  h('div', { className: 'ic-grid' }, acts.map(function (a) {
+    return h('div', { key: a[0], className: 'ic-it' }, h('span', { className: 'ic-act' }, h(N.Icon, { name: a[1] })), h('span', null, a[0]));
+  }))));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+var cats = [['Groceries', 'shopping-cart', 1], ['Baby', 'baby', 2], ['Rent & utilities', 'house', 3], ['Phone & internet', 'wifi', 3],
+  ['Transportation', 'bus', 4], ['Eating out', 'utensils', 5], ['Health & care', 'heart-pulse', 6], ['Education', 'graduation-cap', 7],
+  ['Household', 'spray-can', 8], ['Clothing', 'shirt', 6], ['Subscriptions', 'repeat', 4], ['Entertainment', 'popcorn', 5],
+  ['Gifts', 'gift', 6], ['Fees & interest', 'receipt', 8], ['Income', 'banknote', 1], ['Benefits (CCB)', 'hand-coins', 1],
+  ['Transfer', 'arrow-left-right', 8], ['Other', 'circle-ellipsis', 8]];
+var acts = [['Scan receipt', 'camera'], ['Quick add', 'keyboard'], ['Import CSV', 'file-up'], ['Matched', 'circle-check'],
+  ['Needs review', 'circle-alert'], ['Search', 'search'], ['Alerts', 'bell'], ['Goals', 'piggy-bank'],
+  ['Net worth', 'landmark'], ['Debts', 'credit-card'], ['Previous', 'chevron-left'], ['Next', 'chevron-right']];
+ReactDOM.createRoot(document.getElementById('root-CategoryIcon')).render(h(React.Fragment, null,
+  h('div', { className: 'ic-sec' }, 'Categories'),
+  h('div', { className: 'ic-grid' }, cats.map(function (c) {
+    return h('div', { key: c[0], className: 'ic-it' }, h(N.CategoryIcon, { icon: c[1], color: c[2], size: 'sm' }), h('span', null, c[0]));
+  })),
+  h('div', { className: 'ic-sec' }, 'Full size, in transaction rows'),
+  h('div', { className: 'ic-grid' }, cats.slice(0, 6).map(function (c) {
+    return h('div', { key: c[0], className: 'ic-it' }, h(N.CategoryIcon, { icon: c[1], color: c[2] }), h('span', null, c[0]));
+  }))));
+})();</script>
+<script>(function(){
+var N = window.Nest, h = React.createElement;
+ReactDOM.createRoot(document.getElementById('root-TabBar')).render(h(N.TabBar, { defaultValue: 'home' }));
+})();</script>
+<script>
+(function () {
+  var wrap = document.getElementById('cover-wrap'), sc = document.getElementById('cover-scale');
+  function fit() { var k = Math.min(1, wrap.clientWidth / 960); sc.style.transform = 'scale(' + k + ')'; wrap.style.height = 320 * k + 'px'; }
+  addEventListener('resize', fit); fit();
+  var root = document.documentElement;
+  var themeRoot = ReactDOM.createRoot(document.getElementById('theme-host'));
+  function render(v) {
+    themeRoot.render(React.createElement(window.Nest.PeriodSwitch, { label: 'Theme', options: ['System', 'Light', 'Dark'], value: v, onChange: function (o) {
+      if (o === 'System') root.removeAttribute('data-theme'); else root.setAttribute('data-theme', o.toLowerCase());
+      render(o);
+    } }));
+  }
+  render('System');
+})();
+</script>
+</body>
+</html>

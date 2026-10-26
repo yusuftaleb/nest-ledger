@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Runs the AI Insights writer (scripts/ai-insights.mts) every morning at 7, or at the next wake if the Mac was asleep.
+     Before installing, replace /PATH/TO/nest-ledger with where this folder lives, and /Users/YOU with your home folder
+     (launchd doesn't expand ~ or $HOME).
+     Install:   cp scripts/ai-insights.plist ~/Library/LaunchAgents/com.nestledger.ai-insights.plist
+                launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.nestledger.ai-insights.plist
+     Turn off:  launchctl bootout gui/$(id -u)/com.nestledger.ai-insights
+     Log:       ~/Library/Logs/nest-ledger-ai.log -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.nestledger.ai-insights</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string><string>-lc</string>
+    <string>cd /PATH/TO/nest-ledger &amp;&amp; date &amp;&amp; node --no-warnings scripts/ai-insights.mts</string>
+  </array>
+  <key>StartCalendarInterval</key><dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>0</integer></dict>
+  <key>StandardOutPath</key><string>/Users/YOU/Library/Logs/nest-ledger-ai.log</string>
+  <key>StandardErrorPath</key><string>/Users/YOU/Library/Logs/nest-ledger-ai.log</string>
+</dict>
+</plist>

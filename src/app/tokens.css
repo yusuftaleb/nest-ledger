@@ -1,0 +1,94 @@
+/*
+ * Design tokens. Every color is light-dark(light, dark): the OS setting picks one unless the person
+ * chose Light or Dark in the app, which sets data-theme on <html> (see src/components/theme-switch.tsx).
+ * Bucket colours ("1"-"8") were run through the dataviz palette validator in both modes (CVD and contrast checks).
+ * Series colours are graphite and robin's egg, which differ in lightness as well as hue, so they survive colour blindness.
+ */
+:root {
+  color-scheme: light dark;
+
+  /* Notion: warm paper canvas, white cards on hairlines, near-black ink (github.com/VoltAgent/awesome-design-md, design-md/notion/DESIGN.md) */
+  --bg: light-dark(#f6f5f4, #191919);
+  --surface: light-dark(#ffffff, #202020);
+  --surface-sunk: light-dark(#f1f0ee, #2a2a2a);
+  --raised: light-dark(#ffffff, #2f2f2f);
+  --line: light-dark(#e6e6e6, #2f2f2f);
+  --line-strong: light-dark(#dddddd, #3f3f3f);
+  --ink: light-dark(#0d0d0d, #e6e6e5);
+  --ink-secondary: light-dark(#31302e, #c9c8c5);
+  --ink-muted: light-dark(#615d59, #9b9a97);
+  --ink-faint: light-dark(#a39e98, #6f6e69);
+  --ink-deep: light-dark(#000000, #f2f2f1);
+  --on-ink: light-dark(#ffffff, #191919);
+  --hover: light-dark(rgb(55 53 47 / 0.06), rgb(255 255 255 / 0.055));
+
+  /* exactly one structural accent: Notion blue, for the primary action, links, focus and the current place */
+  --accent: light-dark(#0075de, #2383e2);
+  --accent-pressed: light-dark(#005bab, #1a6dc4);
+  /* a step deeper than the fill so small blue text keeps 4.5:1 on the tinted rows and badges, not only on white */
+  --accent-text: light-dark(#0066c2, #529cca);
+  --accent-soft: light-dark(#e7f1fb, #1d2a38);
+  --on-accent: #ffffff;
+  --focus: light-dark(#0075de, #529cca);
+  --link: light-dark(#0066c2, #529cca);
+  --highlight: light-dark(#fbf3db, #4f4416);
+
+  /* the logo's egg (sticker sky) and money coming in */
+  --egg: #62aef0;
+  --egg-deep: light-dark(#0066c2, #529cca);
+  --straw: #e9d7b0;
+
+  /* status: reserved for meaning, never used as a series color */
+  --good: light-dark(#0066c2, #529cca);
+  --good-soft: light-dark(#e7f1fb, #1d2a38);
+  --warn: light-dark(#8a3c00, #ffa344);
+  --warn-soft: light-dark(#ffead8, #3d2612);
+  --over: light-dark(#c92a2a, #ff7d73);
+  --over-soft: light-dark(#fde2e2, #3f1d1d);
+
+  /* bucket colors "1"–"8" (validated categorical hues; 8 is the neutral "other") */
+ /* Notion's tag colours, no green: blue, orange, purple, yellow, pink, brown, indigo; 8 is the grey "everything else" */
+  --cat-1: light-dark(#337ea9, #529cca);
+  --cat-2: light-dark(#d9730d, #ffa344);
+  --cat-3: light-dark(#9065b0, #9a6dd7);
+  --cat-4: light-dark(#cb912f, #d9a33f);
+  --cat-5: light-dark(#c14c8a, #e255a1);
+  --cat-6: light-dark(#9f6b53, #b48b6c);
+  --cat-7: light-dark(#4954a8, #7b86d6);
+  --cat-8: light-dark(#9b9a97, #7f7e7a);
+
+  /* charts: money out is Notion's warm ink, money in is the blue, the earlier period a pale warm grey */
+  --series-spend: light-dark(#37352f, #d4d4d2);
+  --series-spend-soft: color-mix(in oklab, var(--series-spend) 30%, var(--surface));
+  --series-income: var(--egg-deep);
+  --series-prev: light-dark(#d3d1cb, #4a4a48);
+  --div-more: light-dark(#dd5b00, #e07a45);
+  --div-less: light-dark(#62aef0, #529cca);
+  --grid: light-dark(#ededeb, #2a2a2a);
+  --axis: light-dark(#d3d1cb, #3f3f3f);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --radius-xs: 4px;
+  --radius-sm: 5px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  /* Notion's barely-there elevation: cards are hairline only; raised things get many near-transparent layers */
+  --shadow-card: none;
+  --shadow-raise: rgba(0,0,0,0.01) 0 0.175px 1.041px, rgba(0,0,0,0.02) 0 0.8px 2.925px, rgba(0,0,0,0.027) 0 2.025px 7.847px, rgba(0,0,0,0.04) 0 4px 18px;
+  --shadow-pop: rgba(0,0,0,0.01) 0 1px 3px, rgba(0,0,0,0.02) 0 3px 7px, rgba(0,0,0,0.02) 0 7px 15px, rgba(0,0,0,0.04) 0 14px 28px, rgba(0,0,0,0.05) 0 23px 52px;
+  /* Inter, standing in for NotionInter, everywhere; headings are heavy with tight tracking */
+  --font-sans: var(--font-inter), Inter, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-display: var(--font-sans);
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
