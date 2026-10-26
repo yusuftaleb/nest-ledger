@@ -130,6 +130,7 @@ Checks: `npx next typegen && npx tsc --noEmit`, `npm run lint`, `npm test` and `
 
 - Don't commit bank exports or receipts. Keep them in `private/` (statements in `private/statements/`, receipts in `private/receipts/`); `private/`, `samples/` and `*.csv` are git-ignored.
 - Keys go in `.env.local` or the host's settings only, never in chat, commits or logs.
+- The app logs nothing about money: no `console.log` of rows, amounts, merchants or request bodies, on the server or in the browser. Errors say what failed, not what was in it.
 - Don't add enums or check constraints that would block an agent. Use free text plus comments.
 - An agent connected through the Supabase MCP connector acts as an admin and skips row-level security; that is the household's choice for its own database. The app itself always uses row-level security.
 - A copy may keep its own notes in `instance/` (not part of Nest Ledger itself).

@@ -2,8 +2,35 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from "@/lib/supabase/keys";
 
-// Refreshes the Supabase session cookie on every request and sends signed-out visitors to /login.
+/**
+ * The content security policy: scripts only from this site and only with this response's nonce (Next.js adds it
+ * to its own scripts), nothing framed, nothing sent anywhere but this site. Inline style attributes are allowed
+ * because the charts draw with them; scripts never are.
+ */
+function contentSecurityPolicy(nonce: string) {
+  const dev = process.env.NODE_ENV === "development";
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${dev ? " 'unsafe-eval'" : ""}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' blob: data:",
+    "font-src 'self'",
+    `connect-src 'self'${dev ? " ws:" : ""}`,
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    ...(dev ? [] : ["upgrade-insecure-requests"]),
+  ].join("; ");
+}
+
+// Refreshes the Supabase session cookie on every request, sends signed-out visitors to /login, and sets the
+// content security policy with a fresh nonce for every page.
 export async function proxy(request: NextRequest) {
+  const nonce = Buffer.from(crypto.randomUUID()).toString("base64");
+  const csp = contentSecurityPolicy(nonce);
+  request.headers.set("x-nonce", nonce);
+  request.headers.set("content-security-policy", csp);
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -34,6 +61,7 @@ export async function proxy(request: NextRequest) {
     url.search = "";
     return NextResponse.redirect(url);
   }
+  response.headers.set("content-security-policy", csp);
   return response;
 }
 

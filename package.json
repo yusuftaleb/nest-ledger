@@ -7,7 +7,7 @@
     "build": "next build && node scripts/migrate.mjs",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test \"src/**/*.test.ts\"",
+    "test": "node --test \"src/**/*.test.ts\" \"supabase/tests/*.test.ts\"",
     "insights:ai": "node --no-warnings scripts/ai-insights.mts",
     "migrate": "node scripts/migrate.mjs"
   },
@@ -21,6 +21,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.3.16",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

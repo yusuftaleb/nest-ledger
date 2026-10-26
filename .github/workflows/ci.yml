@@ -1,0 +1,28 @@
+# Every push and pull request: types, lint, unit tests and the access-rule tests (a throwaway Postgres built from
+# supabase/migrations), a production build, and a scan for keys or passwords committed by mistake.
+name: Checks
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx next typegen && npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: No keys or passwords in the code or its history
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

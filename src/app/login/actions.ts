@@ -3,12 +3,14 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { allowAttempt, TOO_MANY } from "@/lib/rate-limit";
 
 export type LoginState = { step: "password" | "email" | "code"; email?: string; error?: string };
 
 export async function signInWithPassword(_prev: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   const password = String(form.get("password") ?? "");
+  if (!(await allowAttempt("signIn", email))) return { step: "password", email, error: TOO_MANY };
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error?.status === 429) return { step: "password", email, error: "Too many tries. Wait a minute, then try again." };
@@ -19,6 +21,7 @@ export async function signInWithPassword(_prev: LoginState, form: FormData): Pro
 export async function sendCode(_prev: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? "").trim().toLowerCase();
   if (!email.includes("@")) return { step: "email", error: "Enter your email address." };
+  if (!(await allowAttempt("sendCode", email))) return { step: "email", email, error: TOO_MANY };
 
   const supabase = await createClient();
   const origin = (await headers()).get("origin") ?? "";
@@ -35,6 +38,7 @@ export async function sendCode(_prev: LoginState, form: FormData): Promise<Login
 export async function verifyCode(_prev: LoginState, form: FormData): Promise<LoginState> {
   const email = String(form.get("email") ?? "");
   const token = String(form.get("code") ?? "").replace(/\s/g, "");
+  if (!(await allowAttempt("checkCode", email))) return { step: "code", email, error: TOO_MANY };
   const supabase = await createClient();
   const { error } = await supabase.auth.verifyOtp({ email, token, type: "email" });
   if (error) return { step: "code", email, error: "That code didn't work. Check it, or send a new one." };

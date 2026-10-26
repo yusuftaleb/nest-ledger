@@ -1,6 +1,6 @@
 import "server-only";
 import { createClient } from "@supabase/supabase-js";
-import { SUPABASE_URL } from "./keys";
+import { SUPABASE_PUBLIC_KEY, SUPABASE_URL } from "./keys";
 
 // The service role key skips row-level security, so it never leaves the server and is used for exactly two
 // things: creating the first person's account on /setup, and creating an invited person's account from their
@@ -25,10 +25,15 @@ export function adminClient() {
   return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
 }
 
-/** True until the first person has set the household up. False when it can't tell (no service role key). */
-export async function needsSetup(): Promise<boolean> {
-  const admin = adminClient();
-  if (!admin) return false;
-  const { count, error } = await admin.from("households").select("id", { count: "exact", head: true });
-  return !error && count === 0;
+/**
+ * "new" until the first person has set the household up, then "done"; "unreachable" when the database can't be
+ * asked yet (settings missing, or its tables not created). Asks the database (is_set_up), so it needs no key.
+ */
+export async function setupState(): Promise<"new" | "done" | "unreachable"> {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !SUPABASE_PUBLIC_KEY) return "unreachable";
+  const { data, error } = await createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY, { auth: { persistSession: false } }).rpc("is_set_up");
+  if (error) return "unreachable";
+  return data ? "done" : "new";
 }
+
+export const needsSetup = async () => (await setupState()) === "new";

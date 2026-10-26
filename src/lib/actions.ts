@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getHousehold, getHouseholdId, getSession } from "./household";
+import { checkInValue, restorable, type Removed } from "./undo";
 import { isoDate } from "./dates";
 import { formatCents, parseAmount } from "./money";
 import { getToday } from "./today";
@@ -99,11 +100,7 @@ export async function updateTransaction(id: string, _prev: FormState, form: Form
 }
 
 /** Everything a delete takes away, so Undo can put the transactions back exactly as they were. */
-export type Removed = {
-  transactions: Record<string, unknown>[]; splits: Record<string, unknown>[]; tags: Record<string, unknown>[];
-  /** IOUs that pointed at these transactions (the database unhooks them on delete). */
-  owed: { id: string; transaction_id: string | null; settled_transaction_id: string | null }[];
-};
+export type { Removed } from "./undo";
 
 async function takeSnapshot(supabase: Awaited<ReturnType<typeof getSession>>["supabase"], ids: string[]): Promise<Removed> {
   const list = ids.join(",");
@@ -126,13 +123,13 @@ export async function deleteTransaction(id: string): Promise<{ error?: string; r
   return { removed };
 }
 
-/** Undo for a delete: the transactions, their splits and tags go back with the same ids, and IOUs are hooked up again. */
-export async function restoreTransactions(removed: Removed): Promise<FormState> {
-  const { supabase } = await getSession();
-  if (removed.transactions.length) {
-    const { error } = await supabase.from("transactions").insert(removed.transactions);
-    if (error) return { error: "Couldn’t bring it back." };
-  }
+/** Undo for a delete: this household's transactions, their splits and tags go back with the same ids, and IOUs are hooked up again. */
+export async function restoreTransactions(sent: Removed): Promise<FormState> {
+  const { supabase, householdId } = await getHouseholdId();
+  const removed = restorable(sent, householdId);
+  if (removed.transactions.length === 0) return { error: "Couldn’t bring it back." };
+  const { error } = await supabase.from("transactions").insert(removed.transactions);
+  if (error) return { error: "Couldn’t bring it back." };
   const [sp, tg] = await Promise.all([
     removed.splits.length ? supabase.from("splits").insert(removed.splits) : null,
     removed.tags.length ? supabase.from("transaction_tags").insert(removed.tags) : null,
@@ -465,7 +462,9 @@ export async function finishCheckIn(): Promise<FormState & { previous?: unknown 
 }
 
 /** Undo for finishing a check-in. */
-export async function undoCheckIn(previous: unknown): Promise<FormState> {
+export async function undoCheckIn(sent: unknown): Promise<FormState> {
+  const previous = checkInValue(sent);
+  if (previous === undefined) return { error: "Couldn’t undo that." };
   const { supabase, householdId } = await getHouseholdId();
   const { error } = previous
     ? await supabase.from("settings").upsert({ household_id: householdId, key: "checkin", value: previous }, { onConflict: "household_id,key" })

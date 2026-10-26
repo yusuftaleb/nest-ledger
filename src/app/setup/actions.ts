@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { adminClient, missingSetupSettings, needsSetup } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isSetupPassword, signInAndJoin } from "@/lib/setup";
+import { allowAttempt, TOO_MANY } from "@/lib/rate-limit";
 
 /** After a failed try, what was typed comes back so the form keeps it (passwords are never sent back). */
 export type SetupState = { error?: string; name?: string; household?: string; email?: string } | null;
@@ -14,6 +15,7 @@ export async function setUp(_prev: SetupState, form: FormData): Promise<SetupSta
   const fail = (error: string): SetupState => ({ error, ...typed });
   const missing = missingSetupSettings();
   if (missing.length) return { error: `The server is missing ${missing.join(", ")}. Add them in Vercel → Settings → Environment Variables, then redeploy.` };
+  if (!(await allowAttempt("setup"))) return fail(TOO_MANY);
   if (!isSetupPassword(String(form.get("setup_password") ?? ""))) return fail("That isn’t the setup password.");
   if (!(await needsSetup())) return fail("This Nest Ledger is already set up. Sign in instead.");
 
