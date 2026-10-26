@@ -10,6 +10,20 @@ You run your own copy: your own database and your own website, on free plans. No
 - **AI without an AI bill:** your own Codex, Claude or ChatGPT can read statements and receipts and write the transactions, through your database's MCP connector. The app checks every number an agent writes.
 - **Any currency, any calendar:** set your currency, how you write dates, and whether weeks start on Monday or Sunday.
 
+<p align="center">
+  <img src="docs/screenshots/home.png" alt="Home: this month's money in and out, balances and budgets, for a made-up household" width="760">
+</p>
+<p align="center">
+  <img src="docs/screenshots/analysis.png" alt="Analysis: spending by bucket over the last 12 months" width="372">
+  <img src="docs/screenshots/plan.png" alt="Plan: goals, budgets and what's coming up" width="372">
+</p>
+<p align="center">
+  <img src="docs/screenshots/phone.png" alt="Home on a phone" width="220">
+  <img src="docs/screenshots/home-dark.png" alt="Home in dark mode" width="520">
+</p>
+
+The screenshots show a made-up household.
+
 ## Set it up
 
 - **By hand, no programming:** follow [docs/SETUP.md](docs/SETUP.md). About 20 minutes. It starts by forking [github.com/yusuftaleb/nest-ledger](https://github.com/yusuftaleb/nest-ledger).
@@ -32,5 +46,7 @@ Checks: `npx next typegen && npx tsc --noEmit`, `npm run lint`, `npm test`, `npm
 ## Licence
 
 [GNU AGPL-3.0](LICENSE). You can use, change and share Nest Ledger freely. If you run a changed version for other people over a network, you must share your changes with them under the same licence.
+
+See [PRIVACY.md](PRIVACY.md) for exactly what leaves your copy (almost nothing), [SECURITY.md](SECURITY.md) to report a problem, and [CONTRIBUTING.md](CONTRIBUTING.md) to help.
 
 Nest Ledger is a notebook, not financial advice.

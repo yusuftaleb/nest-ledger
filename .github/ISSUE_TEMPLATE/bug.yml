@@ -1,0 +1,26 @@
+name: Something isn't working
+description: A bug in Nest Ledger
+body:
+  - type: markdown
+    attributes:
+      value: "**Never paste real transactions, balances, statements or keys here.** Describe the problem with made-up numbers. Security problems go to Security → Report a vulnerability, not here."
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can someone see it happen?
+      placeholder: "1. Open Plan\n2. …"
+  - type: input
+    id: version
+    attributes:
+      label: Version (Settings → About)
+  - type: input
+    id: where
+    attributes:
+      label: Where it runs
+      placeholder: "Vercel + Supabase, phone (Safari)"

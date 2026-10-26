@@ -1,0 +1,16 @@
+name: An idea
+description: Something Nest Ledger could do
+body:
+  - type: markdown
+    attributes:
+      value: "Keep real financial data out of this; made-up examples are perfect."
+  - type: textarea
+    id: need
+    attributes:
+      label: What would it help your household do?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How might it work?
