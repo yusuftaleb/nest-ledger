@@ -23,6 +23,4 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: No keys or passwords in the code or its history
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.24.3 git /repo --redact --verbose
