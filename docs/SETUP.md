@@ -1,6 +1,6 @@
 # Set up your own Nest Ledger
 
-About 20 minutes, no programming, and free. You'll end up with your household's own copy: your own database, your own website, and nobody else (including the people who make Nest Ledger) can see your money.
+About 10 minutes, no programming, and free (a few more if you're making new accounts). You'll end up with your household's own copy: your own database, your own website, and nobody else (including the people who make Nest Ledger) can see your money.
 
 Rather have an AI agent do it? Open this folder in Claude Code, Codex or Gemini and say **"set up Nest Ledger for me"**. It follows `AGENTS.md` and only stops when you need to sign in somewhere.
 
@@ -57,7 +57,11 @@ Rather have an AI agent do it? Open this folder in Claude Code, Codex or Gemini 
 
 If the setup page says settings are missing, it lists them by name. Add them under Vercel → Settings → Environment Variables and redeploy.
 
-## 5. Lock the door
+## After you're in
+
+You're set up. These take a minute each, whenever you like.
+
+### Lock the door (recommended, 1 minute)
 
 Your copy already refuses anyone you didn't invite. This step also stops strangers from creating empty accounts in your database:
 
@@ -66,7 +70,7 @@ Your copy already refuses anyone you didn't invite. This step also stops strange
 
 Your own sign-in and your invites keep working.
 
-## 6. Invite your partner
+### Invite your partner
 
 1. In your site, open **Settings → Household → Invite your partner**.
 2. Type their email and click **Make a join link**.
@@ -74,7 +78,7 @@ Your own sign-in and your invites keep working.
 
 They open it, choose a password, and they're in. The link works once, for 7 days. If it runs out, click **New link** beside their name.
 
-## 7. Put it on your phone
+### Put it on your phone
 
 Open your site on your phone, then:
 - **iPhone (Safari):** Share → **Add to Home Screen**.

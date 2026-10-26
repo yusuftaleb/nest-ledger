@@ -26,7 +26,7 @@ The screenshots show a made-up household.
 
 ## Set it up
 
-- **By hand, no programming:** follow [docs/SETUP.md](docs/SETUP.md). About 20 minutes. It starts by forking [github.com/yusuftaleb/nest-ledger](https://github.com/yusuftaleb/nest-ledger).
+- **By hand, no programming:** follow [docs/SETUP.md](docs/SETUP.md). About 10 minutes. It starts by forking [github.com/yusuftaleb/nest-ledger](https://github.com/yusuftaleb/nest-ledger).
 - **With your AI agent:** open this folder in Claude Code, Codex or Gemini and say "set up Nest Ledger for me". It follows [AGENTS.md](AGENTS.md).
 
 Updates: click **Sync fork** on your copy on GitHub; the website and database update themselves.
