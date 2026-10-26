@@ -11,21 +11,32 @@ export const GROUPS = {
   month: "Month", weekday: "Day of week", day: "Day of month",
 } as const;
 export const MEASURES = { spend: "Spending", income: "Money in", net: "Net", count: "Transactions" } as const;
-const COMPARES ={ none: "No comparison", prev: "Previous period", year: "Same time last year" } as const;
+
 export type GroupKey = keyof typeof GROUPS;
 export type MeasureKey = keyof typeof MEASURES;
-export type CompareKey = keyof typeof COMPARES;
+/** No comparison, the previous period, or the same time last year. */
+export type CompareKey = "none" | "prev" | "year";
 
 export const asGroup = (v: unknown): GroupKey => (typeof v === "string" && v in GROUPS ? (v as GroupKey) : "top_bucket");
 export const asMeasure = (v: unknown): MeasureKey => (typeof v === "string" && v in MEASURES ? (v as MeasureKey) : "spend");
 
 export type Window = { from: string | null; to: string; label: string };
 
-/** The dates a view covers: the search's date if it has one, otherwise the last 12 months including this one. */
-export function windowOf(slice: { from?: string; to?: string; dateLabel?: string }, today: Date): Window {
+/** "Every October" or "average" asks across years: the view opens on Year by year, over all the history. */
+export const acrossYears = (s: { monthOfYear?: number; average?: boolean }) => s.monthOfYear !== undefined || !!s.average;
+
+/**
+ * The dates a view covers: the search's date if it has one, otherwise the last 12 months including this one, or all
+ * the history when the search asks across years.
+ */
+export function windowOf(slice: { from?: string; to?: string; dateLabel?: string; monthOfYear?: number; average?: boolean }, today: Date): Window {
   const tomorrow = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
   if (slice.from && slice.to) {
     return { from: slice.from === "1900-01-01" ? null : slice.from, to: slice.to < tomorrow ? slice.to : tomorrow, label: slice.dateLabel ?? "Selected dates" };
+  }
+  if (acrossYears(slice)) {
+    const m = slice.monthOfYear;
+    return { from: null, to: tomorrow, label: m === undefined ? "All time" : `Every ${parseIso(`2000-${String(m + 1).padStart(2, "0")}-01`).toLocaleDateString(LOCALE, { month: "long" })}` };
   }
   return { from: isoDate(new Date(today.getFullYear(), today.getMonth() - 11, 1)), to: tomorrow, label: "Last 12 months" };
 }
@@ -54,6 +65,8 @@ export function monthsIn(w: Window, lines: { date: string }[]): number {
 }
 
 export type ExploreLine = {
+  /** The month it counts for, YYYY-MM-01: its own, or the next one when a month rule says so (rent sent early). */
+  month?: string;
   date: string; merchant: string; amount_cents: number; bucket_id: string | null; bucket: string; top_bucket: string;
   kind: string; account_id: string; account: string; person: string | null; transaction_id: string;
 };
@@ -197,4 +210,55 @@ export function datesOf(w: Window): string {
   }
   const sameYear = a.getFullYear() === b.getFullYear();
   return `${a.toLocaleDateString(LOCALE, { month: "short", day: "numeric", year: sameYear ? undefined : "numeric" })} – ${b.toLocaleDateString(LOCALE, { month: "short", day: "numeric", year: "numeric" })}`;
+}
+
+/** The month a line counts for. */
+export const monthOf = (l: ExploreLine) => l.month ?? `${l.date.slice(0, 7)}-01`;
+
+export type YearRow = {
+  year: number; label: string; long: string;
+  /** That month's total ("every October"), or the year's average month. */
+  value: number;
+  /** Finished months behind the value. */
+  months: number;
+  /** Only the month still running: shown, but kept out of the average. */
+  partial: boolean;
+  lines: ExploreLine[];
+};
+
+/**
+ * One row per year. With a month of the year chosen, that month's total each year; otherwise each year's average
+ * month. Only months the records wholly cover count, from the first whole month on record to the last finished one;
+ * the month still running shows as "so far" and stays out of the average, and a month with records but nothing
+ * spent counts as nothing spent.
+ */
+export function yearByYear(lines: ExploreLine[], m: MeasureKey, o: { from: string | null; to: string; earliest: string | null; today: string; month?: number }) {
+  const first = o.earliest ? (o.earliest.endsWith("-01") ? o.earliest : addMonths(`${o.earliest.slice(0, 7)}-01`, 1)) : null;
+  const fromMonth = o.from ? (o.from.endsWith("-01") ? o.from : addMonths(`${o.from.slice(0, 7)}-01`, 1)) : null;
+  const start = [first, fromMonth].filter(Boolean).sort().at(-1) ?? lines.map(monthOf).sort()[0];
+  const current = `${o.today.slice(0, 7)}-01`;
+  if (!start) return { rows: [] as YearRow[], average: 0, months: 0 };
+  const byMonth = new Map<string, ExploreLine[]>();
+  for (const l of lines) { const k = monthOf(l); (byMonth.get(k) ?? byMonth.set(k, []).get(k)!).push(l); }
+  const years = new Map<number, { done: number[]; now: number | null; lines: ExploreLine[]; running: ExploreLine[] }>();
+  for (let k = start; k <= current && k < o.to; k = addMonths(k, 1)) {
+    if (o.month !== undefined && Number(k.slice(5, 7)) - 1 !== o.month) continue;
+    const y = Number(k.slice(0, 4));
+    const row = years.get(y) ?? years.set(y, { done: [], now: null, lines: [], running: [] }).get(y)!;
+    const here = byMonth.get(k) ?? [];
+    const v = totals(here, m).value;
+    if (k === current) { row.now = v; row.running = here; } else { row.done.push(v); row.lines.push(...here); }
+  }
+  const name = (y: number) => o.month === undefined ? String(y) : parseIso(`${y}-${String(o.month + 1).padStart(2, "0")}-01`).toLocaleDateString(LOCALE, { month: "short", year: "numeric" });
+  const longName = (y: number) => o.month === undefined ? String(y) : parseIso(`${y}-${String(o.month + 1).padStart(2, "0")}-01`).toLocaleDateString(LOCALE, { month: "long", year: "numeric" });
+  const rows: YearRow[] = [...years].map(([year, r]) => {
+    const sum = r.done.reduce((a, b) => a + b, 0);
+    return {
+      // the transactions behind the number: the finished months, or the running one when it is all there is
+      year, label: name(year), long: longName(year), lines: r.done.length ? r.lines : r.running, months: r.done.length,
+      value: r.done.length ? sum / r.done.length : r.now ?? 0, partial: r.done.length === 0,
+    };
+  });
+  const done = [...years.values()].flatMap((r) => r.done);
+  return { rows, average: done.length ? done.reduce((a, b) => a + b, 0) / done.length : 0, months: done.length };
 }

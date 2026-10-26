@@ -39,11 +39,6 @@ function change(now: number, before: number): string | null {
   const r = now / before - 1;
   return Math.abs(r) < 0.03 ? "about the same" : `${r > 0 ? "up" : "down"} ${pct(Math.abs(r))}`;
 }
-/** "$120 more" / "$80 less" / "about the same". */
-function diff(now: number, before: number): string {
-  const d = now - before;
-  return Math.abs(d) < 500 ? "about the same" : `${dollars(Math.abs(d))} ${d > 0 ? "more" : "less"}`;
-}
 
 /**
  * Everything Codex may say, as facts: the last year month by month, averages and their direction, this month and

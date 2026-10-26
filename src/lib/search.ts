@@ -18,9 +18,13 @@ export type Slice = {
   kinds: string[];
   /** review, split, unverified, foreign */
   flags: string[];
+  /** "every October": one month of the year, 0–11, in every year the dates cover. */
+  monthOfYear?: number;
+  /** "average": show the typical month, not the total. Picks the view; filters nothing. */
+  average?: boolean;
 };
 
-export type Chip = { kind: "date" | "amount" | "bucket" | "account" | "person" | "kind" | "flag" | "text"; label: string; token: string };
+export type Chip = { kind: "date" | "month" | "average" | "amount" | "bucket" | "account" | "person" | "kind" | "flag" | "text"; label: string; token: string };
 
 type Named = { id: string; name: string };
 export type SearchContext = {
@@ -65,6 +69,16 @@ function amountOf(w: string | undefined): number | null {
   const whole = Number(m[1].replace(/,/g, ""));
   const cents = m[2] ? Number(m[2].padEnd(2, "0")) : 0;
   return (whole * 100 + cents) * (m[3] ? 1000 : 1);
+}
+
+/** How many words at `j` say "in every year": "over the years", "across years", "each year", "every year", "by year". */
+function yearsTail(words: string[], j: number): number {
+  const [a, b, c] = [words[j], words[j + 1], words[j + 2]];
+  if ((a === "over" || a === "across" || a === "through" || a === "in") && b === "the" && c === "years") return 3;
+  if ((a === "over" || a === "across" || a === "through" || a === "by") && (b === "years" || b === "year")) return 2;
+  if ((a === "each" || a === "every") && b === "year") return 2;
+  if (a === "yearly") return 1;
+  return 0;
 }
 
 function range(from: Date, to: Date, label: string) {
@@ -121,6 +135,18 @@ export function parseSearch(input: string, ctx: SearchContext): { slice: Slice; 
     const w = words[i], n1 = words[i + 1], n2 = words[i + 2];
 
     // ---- dates ----
+    // one month in every year: "every october", "octobers", "october over the years", "groceries in may each year"
+    {
+      const lead = (w === "every" || w === "each") && monthIndex(n1 ?? "") >= 0 ? 1 : 0;
+      const at = words[i + lead];
+      const m = lead ? monthIndex(at) : at.endsWith("s") ? MONTHS.indexOf(at.slice(0, -1)) : monthIndex(at);
+      const tail = m >= 0 ? yearsTail(words, i + lead + 1) : 0;
+      if (m >= 0 && (lead || tail || at.endsWith("s") && MONTHS.includes(at.slice(0, -1)))) {
+        slice.monthOfYear = m;
+        chips.push({ kind: "month", label: `Every ${MONTHS[m][0].toUpperCase()}${MONTHS[m].slice(1)}`, token: take(i, lead + 1 + tail) });
+        continue;
+      }
+    }
     // a span: "july to oct", "from mar 2025 through feb", "2026-07-01 to 2026-08-15", "between may and july"
     {
       const lead = w === "from" || w === "between" ? 1 : 0;
@@ -205,6 +231,13 @@ export function parseSearch(input: string, ctx: SearchContext): { slice: Slice; 
       continue;
     }
     if (isYear(w)) { setDate(range(new Date(Number(w), 0, 1), new Date(Number(w) + 1, 0, 1), w), take(i, 1)); continue; }
+
+    // ---- the typical month ----
+    if (w === "average" || w === "averages" || w === "avg" || w === "monthly" || w === "per" && n1 === "month") {
+      slice.average = true;
+      chips.push({ kind: "average", label: "Monthly average", token: take(i, w === "per" ? 2 : 1) });
+      continue;
+    }
 
     // ---- amounts ----
     const cmp = w === "over" || w === "above" || w === ">" || w === "more" || w === "under" || w === "below" || w === "<" || w === "less";
@@ -360,6 +393,7 @@ const kindOf = (bucketId: string | null, amount: number, buckets: BucketKind[]) 
 export function matchesTransaction(t: TxLike, s: Slice, buckets: BucketKind[]): boolean {
   if (s.from && t.date < s.from) return false;
   if (s.to && t.date >= s.to) return false;
+  if (s.monthOfYear !== undefined && Number(t.date.slice(5, 7)) - 1 !== s.monthOfYear) return false;
   const abs = Math.abs(t.amount_cents);
   if (s.min !== undefined && abs < s.min) return false;
   if (s.max !== undefined && abs > s.max) return false;
@@ -385,6 +419,8 @@ export function matchesTransaction(t: TxLike, s: Slice, buckets: BucketKind[]): 
 }
 
 type LineLike = {
+  /** The month the line counts for, when a month rule moved it (rent sent early); otherwise its date's month. */
+  month?: string;
   date: string; merchant: string; amount_cents: number; account_id: string; bucket_id: string | null; kind: string;
   person: string | null; needs_review?: boolean; verified?: boolean; transaction_id?: string;
 };
@@ -393,6 +429,7 @@ type LineLike = {
 export function matchesLine(l: LineLike, s: Slice, ctx: { buckets: { id: string; parent_id?: string | null }[]; members: { user_id: string; display_name: string }[]; splitCount?: Map<string, number> }): boolean {
   if (s.from && l.date < s.from) return false;
   if (s.to && l.date >= s.to) return false;
+  if (s.monthOfYear !== undefined && Number((l.month ?? l.date).slice(5, 7)) - 1 !== s.monthOfYear) return false;
   const abs = Math.abs(l.amount_cents);
   if (s.min !== undefined && abs < s.min) return false;
   if (s.max !== undefined && abs > s.max) return false;

@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { CURRENCY } from "@/lib/format";
+import { newerRelease, UPSTREAM, VERSION } from "@/lib/version";
 import { LogOut, Plus } from "lucide-react";
 import { iconProps } from "@/components/icons";
 import { setAccountArchived, setBucketArchived, signOut } from "@/lib/actions";
@@ -118,6 +120,18 @@ export default async function SettingsPage() {
         </div>
       </section>
 
+      <section className="group" aria-labelledby="s-about">
+        <h2 className="group-title" id="s-about">About</h2>
+        <div className="nl-card">
+          <div className="list-row">
+            <div className="list-row-main">
+              <div>Nest Ledger {VERSION}</div>
+              <Suspense fallback={null}><UpdateNotice /></Suspense>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <form action={signOut}>
         <button className="nl-btn nl-btn-md nl-btn-secondary btn-block"><LogOut {...iconProps} size={18} />Sign out</button>
       </form>
@@ -166,5 +180,17 @@ export default async function SettingsPage() {
 
       </div>
     </div>
+  );
+}
+
+/** When a later release is out: what it is and how this copy gets it. Says nothing otherwise. */
+async function UpdateNotice() {
+  const release = await newerRelease();
+  if (!release) return null;
+  return (
+    <p className="caption">
+      Version {release.version} is out (<a href={release.url} target="_blank" rel="noreferrer">what’s new</a>). To get it, open your
+      copy of {UPSTREAM.split("/")[1]} on GitHub and choose Sync fork → Update branch; the site and its database update themselves.
+    </p>
   );
 }

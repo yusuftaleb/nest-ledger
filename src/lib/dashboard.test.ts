@@ -13,7 +13,7 @@ const line = (bucket_id: string | null, amount_cents: number, kind: string, extr
   const b = buckets.find((x) => x.id === bucket_id);
   const top = b?.parent_id ? buckets.find((x) => x.id === b.parent_id)! : b;
   return {
-    date: "2026-10-05", month: "2026-10-01", merchant: "Superstore", amount_cents, account: "RBC chequing",
+    date: "2026-10-05", month: "2026-10-01", merchant: "Superstore", amount_cents, account: "Everyday chequing",
     bucket_id, bucket: b?.name ?? "Uncategorized", top_bucket: top?.name ?? "Uncategorized", kind,
     person: "Alex", tags: [] as string[], ...extra,
   };

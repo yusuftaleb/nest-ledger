@@ -3,9 +3,9 @@ import { test } from "node:test";
 import { parseQuickAdd } from "./quick-add.ts";
 
 const accounts = [
-  { id: "rbc", name: "RBC chequing", institution: "RBC", kind: "chequing" },
-  { id: "joint", name: "Joint credit card", institution: "RBC", kind: "credit_card" },
-  { id: "cibc", name: "CIBC card", institution: "CIBC", kind: "credit_card" },
+  { id: "chq", name: "Everyday chequing", institution: "Northside", kind: "chequing" },
+  { id: "joint", name: "Joint credit card", institution: "Northside", kind: "credit_card" },
+  { id: "harbor", name: "Sam’s card", institution: "Harbor Credit", kind: "credit_card" },
   { id: "pc", name: "PC Mastercard", institution: "PC Financial", kind: "credit_card" },
   { id: "wise", name: "Wise", institution: "Wise", kind: "chequing" },
   { id: "cash", name: "Cash", institution: null, kind: "cash" },
@@ -53,10 +53,10 @@ test("date words", () => {
 
 test("account words", () => {
   assert.equal(parse("superstore 80 pc")?.accountId, "pc");
-  assert.equal(parse("superstore 80 on cibc")?.accountId, "cibc");
+  assert.equal(parse("superstore 80 on harbor")?.accountId, "harbor");
   assert.equal(parse("superstore 80 joint")?.accountId, "joint");
   assert.equal(parse("netflix 16.99 wise")?.accountId, "wise");
-  assert.equal(parse("superstore 80 debit")?.accountId, "rbc");
+  assert.equal(parse("superstore 80 debit")?.accountId, "chq");
   assert.equal(parse("superstore 80 pcf")?.accountId, "pc");
   assert.equal(parse("tims 3 cash")?.accountId, "cash");
 });

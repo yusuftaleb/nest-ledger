@@ -1,5 +1,6 @@
 import { readStored, type AiRead } from "./ai-insights";
 import type { Household } from "./household";
+import type { MonthRule } from "./month-rules";
 import { groupOwed, type OwedEntry } from "./owed";
 import { applyRecurringExclusions, type RecurringExclusion } from "./recurring-exclusions";
 import { TX_SELECT, type Account, type Budget, type Bucket, type Line, type Member, type OwedRow, type TransactionRow, type Widget } from "./types";
@@ -30,6 +31,8 @@ export type DashboardSource = {
   /** Open IOUs per person. */
   owed(): Promise<OwedRow[]>;
   view(name: string, limit: number): Promise<ViewResult>;
+  /** Payments that count for the next month (rent sent early, income paid ahead): see src/lib/month-rules.ts. */
+  monthRules?(): Promise<MonthRule[]>;
   /** The latest insights and patterns Codex wrote (scripts/ai-insights.mts), or null when none is under two days old. */
   ai?(): Promise<AiRead | null>;
   /** Made-up data: nothing on the page may change the real household. */
@@ -115,6 +118,12 @@ export function supabaseSource(h: Household): DashboardSource {
     async view(name, limit) {
       const { data, error } = await db.from(name).select("*").limit(limit);
       return { rows: (data ?? []) as Record<string, unknown>[], error: error?.message };
+    },
+    async monthRules() {
+      // optional: without them, every payment counts in the month it landed
+      const { data, error } = await db.from("recurring").select("merchant, account_id, attrs")
+        .eq("household_id", h.householdId).eq("active", true).eq("attrs->>counts_for", "next_month");
+      return error ? [] : (data ?? []) as MonthRule[];
     },
     ai() {
       // optional: a missing, failed or stale read just leaves the Home card out

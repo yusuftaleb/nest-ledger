@@ -12,8 +12,9 @@ import { CustomRange, FilterBar } from "./filter-menus";
 import { CategoryIcon, bucketColor } from "./icons";
 import { Menu, type Option } from "./menu";
 import { deleteView, saveView, type FormState } from "@/lib/actions";
+import { EXPLORE_EVENT, type ExploreRequest } from "./season-link";
 import {
-  GROUPS, MEASURES, alignSlots, daysIn, groupBy, monthsIn, naturalOrder, runningTotal, seriesOf, slotsOf, totals,
+  GROUPS, MEASURES, acrossYears, alignSlots, daysIn, groupBy, monthsIn, naturalOrder, runningTotal, seriesOf, slotsOf, totals, yearByYear,
   datesOf, type ExploreLine, type GroupKey, type MeasureKey, type Row, type Window,
 } from "@/lib/explore";
 import { addDaysIso } from "@/lib/dates";
@@ -25,10 +26,10 @@ type Ctx = Omit<SearchContext, "today" | "buckets"> & { buckets: { id: string; n
 type SortKey = "label" | "value" | "share" | "count" | "average" | "change";
 type Sort = { key: SortKey; dir: "asc" | "desc" };
 export type SavedView = { id: string; name: string; query: string };
-export const VIEWS = { breakdown: "Breakdown", mix: "Mix", time: "Over time", running: "Running total", heatmap: "Heatmap" } as const;
+export const VIEWS = { breakdown: "Breakdown", mix: "Mix", time: "Over time", running: "Running total", heatmap: "Heatmap", years: "Year by year" } as const;
 export type ViewKey = keyof typeof VIEWS;
-// on a phone the five tabs share one row, so the long names give way
-const VIEWS_SHORT: Record<ViewKey, string> = { breakdown: "Breakdown", mix: "Mix", time: "Time", running: "Running", heatmap: "Heatmap" };
+// on a phone the six tabs share one row, so the long names give way
+const VIEWS_SHORT: Record<ViewKey, string> = { breakdown: "Breakdown", mix: "Mix", time: "Time", running: "Running", heatmap: "Heatmap", years: "Years" };
 
 /**
  * One chart for every question. Filters (search, dates, bucket, account, person, type, amount, status) and the
@@ -44,7 +45,7 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
   const router = useRouter();
   // the page this explorer lives on; a peek opened on top changes the address, and that one is not ours to rewrite
   const [path] = useState(usePathname());
-  const [q, setQ] = useState(initial.q);
+  const [q, setQText] = useState(initial.q);
   const [compareTo, setCompareTo] = useState(vs);
   const [pickVs, setPickVs] = useState(false);
   const [g, setG] = useState(initial.g);
@@ -55,19 +56,30 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const today = useMemo(() => new Date(`${todayIso}T12:00`), [todayIso]);
   const { slice, chips } = useMemo(() => parseSearch(q, { ...ctx, today }), [q, ctx, today]);
+  // typing "every october" or "average" turns to Year by year, once; picking another chart after that sticks
+  const setQ = (next: string) => {
+    if (acrossYears(parseSearch(next, { ...ctx, today }).slice) && !acrossYears(slice)) setView("years");
+    setQText(next);
+  };
+  // a month tapped in "Months that cost more" further down the page
+  useEffect(() => {
+    const ask = (e: Event) => { const { q: next, view: v } = (e as CustomEvent<ExploreRequest>).detail; setQText(next); setView(v); };
+    window.addEventListener(EXPLORE_EVENT, ask);
+    return () => window.removeEventListener(EXPLORE_EVENT, ask);
+  }, []);
 
   // the URL describes the view. Filters and the comparison also shape the rest of the page, so they go to the server.
   const query = useMemo(() => {
     const p = new URLSearchParams();
     if (q.trim()) p.set("q", q.trim());
     if (compareTo !== "prev") p.set("vs", compareTo);
-    if (view !== "breakdown") p.set("view", view);
+    if (view !== (acrossYears(slice) ? "years" : "breakdown")) p.set("view", view);
     if (g !== "top_bucket") p.set("g", g);
     if (m !== "spend") p.set("m", m);
     if (sort.key !== "value") p.set("s", sort.key);
     if (sort.dir !== "desc") p.set("dir", sort.dir);
     return p.toString();
-  }, [q, compareTo, view, g, m, sort]);
+  }, [q, slice, compareTo, view, g, m, sort]);
   const serverKey = `${q.trim()}|${compareTo}`;
   const [sent, setSent] = useState(`${initial.q.trim()}|${vs}`);
   const fetching = useRef<string | null>(null);
@@ -97,7 +109,9 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
   const inA = kept.filter((l) => (!a.from || l.date >= a.from) && l.date < a.to);
   // the same filters in Activity; with no dates typed, the page's own window goes along (whole months, as here)
   const since = a.from && !slice.from ? ` since ${new Date(`${a.from}T12:00`).toLocaleDateString(LOCALE, { month: "long", year: "numeric" })}` : "";
-  const see = `/transactions?q=${encodeURIComponent(`${q.trim()}${since}`.trim())}`;
+  // "average" picks a chart, not transactions, so it stays here
+  const plain = chips.filter((c) => c.kind === "average").reduce((s, c) => withoutChip(s, c), q);
+  const see = `/transactions?q=${encodeURIComponent(`${plain.trim()}${since}`.trim())}`;
   const open = () => router.push(see);
   const inB = b ? kept.filter((l) => l.date >= b.from! && l.date < b.to) : [];
   const firstLoaded = lines.reduce((min, l) => (l.date < min ? l.date : min), "9999-12-31");
@@ -105,6 +119,7 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
   const B = b?.from && firstLoaded <= addDaysIso(b.from, 31) ? b : null;
 
   const now = totals(inA, m), before = B ? totals(inB, m) : null;
+  const yearly = useMemo(() => yearByYear(kept, m, { from: a.from, to: a.to, earliest, today: todayIso, month: slice.monthOfYear }), [kept, m, a.from, a.to, earliest, todayIso, slice.monthOfYear]);
   const days = Math.max(1, daysIn(a) || Math.round(monthsIn(a, inA) * 30.44));
   const fmt = (v: number) => (m === "count" ? Math.round(v).toLocaleString(LOCALE) : m === "net" ? formatCents(Math.round(v)) : money(Math.round(v)));
   const change = before && before.value ? (now.value - before.value) / Math.abs(before.value) : null;
@@ -127,7 +142,7 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
             placeholder="Filter: groceries last year, by Partner, over $50…" autoComplete="off" spellCheck={false} />
           {q && <button type="button" className="search-clear" aria-label="Clear" onClick={() => setQ("")}><X size={16} strokeWidth={2} /></button>}
         </form>
-        <FilterBar q={q} setQ={setQ} ctx={ctx} today={today} earliest={earliest} defaultDates="Last 12 months" />
+        <FilterBar q={q} setQ={setQ} ctx={ctx} today={today} earliest={earliest} defaultDates={acrossYears(slice) ? "All time" : "Last 12 months"} />
         {chips.length > 0 && (
           <ul className="chip-row" aria-label="Filters">
             {chips.map((ch, i) => (
@@ -168,7 +183,10 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
           {before && B && <dd className="kpi-change muted">{change === null ? `${B.label}: ` : ""}{fmt(before.value)}{bName !== B.label && ` · ${bName}`}</dd>}
           {b && !B && <dd className="kpi-change muted">No history for {b.label} yet</dd>}
         </div>
-        {m !== "count" && <div><dt>{days <= 120 ? "Per day" : "Per month"}</dt><dd>{fmt(days <= 120 ? now.value / days : now.value / monthsIn(a, inA))}</dd></div>}
+        {/* across years, the typical month counts finished months only; otherwise the total spread over the dates */}
+        {m !== "count" && (acrossYears(slice) && yearly.months
+          ? <div><dt>A month on average</dt><dd>{fmt(yearly.average)}</dd></div>
+          : <div><dt>{days <= 120 ? "Per day" : "Per month"}</dt><dd>{fmt(days <= 120 ? now.value / days : now.value / monthsIn(a, inA))}</dd></div>)}
         <div><dt>Transactions</dt><dd>{now.transactions.toLocaleString(LOCALE)}</dd></div>
       </dl>
 
@@ -203,8 +221,10 @@ export function Explorer({ today: todayIso, earliest, lines, a, b, years = [], v
       ) : view === "running" ? (
         <Running key={run} inA={inA} inB={inB} a={a} B={B} m={m} todayIso={todayIso} aName={B && compareTo === "years" ? yearsLabel(a) : aTitle} bName={bTitle}
           older={compareTo === "years" ? years.filter((w) => w.from! >= addDaysIso(firstLoaded, -31)).map((w) => ({ w, lines: kept.filter((l) => l.date >= w.from! && l.date < w.to) })) : []} />
-      ) : (
+      ) : view === "heatmap" ? (
         <Heat inA={inA} a={a} g={g} m={m} firstLoaded={firstLoaded} ctx={ctx} />
+      ) : (
+        <Years key={run} yearly={yearly} m={m} fmt={fmt} month={slice.monthOfYear} ctx={ctx} />
       )}
     </div>
   );
@@ -535,6 +555,51 @@ function Running({ inA, inB, a, B, m, todayIso, aName, bName, older }: {
   const axis = [label(start), label(new Date(start.getTime() + (days / 2) * 86_400_000)), label(new Date(start.getTime() + (days - 1) * 86_400_000))];
   return <PaceChart now={now} before={was} days={days} today={now.length} axis={axis} labels={{ now: aName, before: B ? bName : "" }}
     older={B ? older.map(({ w, lines }) => ({ label: w.label, values: runningTotal(lines, w, m) })) : []} />;
+}
+
+/**
+ * One bar per year with the average as a hairline: a month across the years ("every October"), or each year's
+ * typical month. The month still running is faded and marked "so far"; a bar opens its transactions.
+ */
+function Years({ yearly, m, fmt, month, ctx }: { yearly: ReturnType<typeof yearByYear>; m: MeasureKey; fmt: (v: number) => string; month?: number; ctx: Ctx }) {
+  const [picked, setPicked] = useState<number | null>(null);
+  const { rows, average, months } = yearly;
+  if (rows.length === 0) return <p className="empty">Nothing on record for these dates yet.</p>;
+  const name = month === undefined ? null : new Date(2000, month, 1).toLocaleDateString(LOCALE, { month: "long" });
+  const max = Math.max(...rows.map((r) => Math.abs(r.value)), Math.abs(average), 1);
+  const row = rows.find((r) => r.year === picked);
+  const moved = rows.some((r) => r.lines.some((l) => l.month && l.month.slice(0, 7) !== l.date.slice(0, 7)));
+  const per = m === "count" ? "transactions" : MEASURES[m].toLowerCase();
+  return (
+    <>
+      <p className="years-lede">
+        {months === 0
+          ? name ? `No finished ${name} on record yet.` : "No finished month on record yet."
+          : <><strong className="nl-amt">{fmt(average)}</strong> {name ? `of ${per} in ${name} on average, over ${months} ${months === 1 ? "year" : "years"}` : `of ${per} a month on average, over ${months} ${months === 1 ? "month" : "months"}`}</>}
+      </p>
+      <ul className="xbars years" aria-label={name ? `${MEASURES[m]} in ${name}, year by year` : `${MEASURES[m]} in an average month, year by year`}>
+        {rows.map((r, i) => (
+          <li key={r.year} style={{ "--i": i } as React.CSSProperties}>
+            <button type="button" className={`xbar${r.partial ? " is-partial" : ""}`} onClick={() => setPicked(r.year)}
+              title={r.partial ? "Still running: not in the average" : name ? undefined : `Average of ${r.months} ${r.months === 1 ? "month" : "months"}`}>
+              <span className="xbar-label">{r.label}</span>
+              <span className="xbar-track">
+                <span className="xbar-fill" style={{ width: `${(Math.abs(r.value) / max) * 100}%`, background: m === "income" ? "var(--series-income)" : "var(--series-spend)" }} />
+                {months > 0 && <span className="xbar-was" style={{ left: `${(Math.abs(average) / max) * 100}%` }} aria-hidden />}
+              </span>
+              <span className="xbar-value nl-amt">{fmt(r.value)}{r.partial && <span className="caption"> so far</span>}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="explore-more">
+        {months > 0 && <span className="caption"><span className="xbar-was-key" aria-hidden />Average</span>}
+        {moved && <span className="caption">Rent sent early and pay that arrives ahead count in the month they’re for.</span>}
+      </div>
+      {row && createPortal(
+        <SlotSheet title={name ? row.long : `${row.long}${row.partial ? ", so far" : ""}`} ctx={ctx} close={() => setPicked(null)} lines={row.lines.filter(countedBy(m))} />, document.body)}
+    </>
+  );
 }
 
 /** Groups × time, one hue: where and when the money went. */

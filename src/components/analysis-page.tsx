@@ -6,14 +6,16 @@ import { Explorer, type SavedView, type ViewKey } from "./explorer";
 import { compact, money } from "./charts";
 import { BoardSkeleton } from "./skeleton";
 import { WidgetBoard } from "./widgets";
-import { asGroup, asMeasure, compareWindow, datesOf, windowOf, type ExploreLine, type Window } from "@/lib/explore";
+import { acrossYears, asGroup, asMeasure, compareWindow, datesOf, windowOf, type ExploreLine, type Window } from "@/lib/explore";
+import { applyMonthRules } from "@/lib/month-rules";
+import { SeasonLink } from "./season-link";
 import { periodRange, type PeriodKey } from "@/lib/dashboard";
 import { matchesLine } from "@/lib/search";
 import type { Option } from "./menu";
 import { withLoadedLines, type DashboardSource } from "@/lib/dashboard-source";
 import { incomeCalendar, oneOffs, priceCreep, seasonal, spikes } from "@/lib/insights";
 import { addDaysIso, addMonths, isoDate, parseIso } from "@/lib/dates";
-import { parseSearch } from "@/lib/search";
+import { parseSearch, withoutChip } from "@/lib/search";
 import { getToday } from "@/lib/today";
 
 type Params = { q?: string; vs?: string; view?: string; g?: string; m?: string; s?: string; dir?: string };
@@ -32,7 +34,7 @@ export async function AnalysisPage({ source, params, saved }: { source: Dashboar
     userId: source.userId,
   };
   const q = params.q ?? "";
-  const { slice } = parseSearch(q, { ...ctx, today });
+  const { slice, chips } = parseSearch(q, { ...ctx, today });
   const a = windowOf(slice, today);
 
   // what kind of stretch the dates are, so "compared with" can offer the same kind earlier on
@@ -90,19 +92,23 @@ export async function AnalysisPage({ source, params, saved }: { source: Dashboar
   const twoYears = isoDate(new Date(today.getFullYear() - 2, today.getMonth(), 1));
   const from = a.from === null ? null : [a.from, b?.from, twoYears, years.at(-1)?.from].filter(Boolean).sort()[0]!;
   const until = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
-  const [all, views] = await Promise.all([source.lines(from, a.to > until ? a.to : until), saved]);
+  const [all, views, rules] = await Promise.all([source.lines(from, a.to > until ? a.to : until), saved, source.monthRules?.() ?? []]);
+  // rent sent in the last days of a month, or income paid ahead, counts in the month it is for
+  const timed = applyMonthRules(all, rules).lines;
   const lower = a.from === null ? null : [a.from, b?.from, years.at(-1)?.from].filter(Boolean).sort()[0]!;
   const upper = [a.to, b?.to].filter(Boolean).sort().at(-1)!;
-  const lines: ExploreLine[] = all.filter((l) => (!lower || l.date >= lower) && l.date < upper).map((l) => ({
-    date: l.date, merchant: l.merchant, amount_cents: l.amount_cents, bucket_id: l.bucket_id, bucket: l.bucket, top_bucket: l.top_bucket,
+  const lines: ExploreLine[] = timed.filter((l) => (!lower || l.date >= lower) && l.date < upper).map((l) => ({
+    month: l.month, date: l.date, merchant: l.merchant, amount_cents: l.amount_cents, bucket_id: l.bucket_id, bucket: l.bucket, top_bucket: l.top_bucket,
     kind: l.kind, account_id: l.account_id, account: l.account, person: l.person, transaction_id: l.transaction_id,
   }));
   // the same filters shape the patterns
-  const filtered = all.filter((l) => matchesLine(l, { ...slice, from: undefined, to: undefined }, { buckets: source.buckets, members: source.members }));
+  const filtered = timed.filter((l) => matchesLine(l, { ...slice, from: undefined, to: undefined }, { buckets: source.buckets, members: source.members }));
   const sKey = SORTS.find((k) => k === params.s) ?? "value";
   // the cards read up to the last day of the chosen dates (today, unless the dates are in the past)
   const anchor = a.to < until ? parseIso(addDaysIso(a.to, -1)) : today;
-  const view = (["breakdown", "mix", "time", "running", "heatmap"] as ViewKey[]).find((v) => v === params.view) ?? "breakdown";
+  const view = (["breakdown", "mix", "time", "running", "heatmap", "years"] as ViewKey[]).find((v) => v === params.view) ?? (acrossYears(slice) ? "years" : "breakdown");
+  // the months in "Months that cost more" open every such month, keeping the filters but not the dates
+  const undated = chips.filter((c) => c.kind === "date" || c.kind === "month").reduce((s, c) => withoutChip(s, c), q);
 
   return (
     <>
@@ -110,7 +116,7 @@ export async function AnalysisPage({ source, params, saved }: { source: Dashboar
       <Explorer today={isoDate(today)} earliest={source.earliest} lines={lines} a={a} b={b} years={years} vs={vs} vsOptions={vsOptions} ctx={ctx} saved={views}
         initial={{ q, g: asGroup(params.g), m: asMeasure(params.m), view, s: sKey, dir: params.dir === "asc" ? "asc" : "desc" }} />
       <PageSection id="patterns" title="Patterns">
-        <Patterns lines={filtered} today={today} from={a.from ?? "1900-01-01"} to={a.to} label={a.label} />
+        <Patterns lines={filtered} today={today} from={a.from ?? "1900-01-01"} to={a.to} label={a.label} undated={undated} />
       </PageSection>
       <PageSection id="insights" title="Insights">
         <Suspense fallback={<BoardSkeleton summary={false} />}>
@@ -151,7 +157,7 @@ type AnyLine = Parameters<typeof priceCreep>[0][number];
  * Findings from the data as one quiet list: each row names the finding and its gist, and opens to the
  * detail. One open at a time. Only what the data clearly supports is shown.
  */
-function Patterns({ lines, today, from, to, label }: { lines: AnyLine[]; today: Date; from: string; to: string; label: string }) {
+function Patterns({ lines, today, from, to, label, undated }: { lines: AnyLine[]; today: Date; from: string; to: string; label: string; undated: string }) {
   const creep = priceCreep(lines, today);
   const jumps = spikes(lines, from, to);
   const once = oneOffs(lines, from, to, today);
@@ -207,12 +213,14 @@ function Patterns({ lines, today, from, to, label }: { lines: AnyLine[]; today: 
     key: "season", icon: <Leaf />, title: "Months that cost more", gist: peaks.slice(0, 2).map((p) => monthName(p.month)).join(", "),
     body: (
       <>
-        <div className="season" role="img" aria-label={`Average spending by calendar month. Highest: ${peaks.map((p) => monthName(p.month)).join(", ")}.`}>
+        {/* each month opens its own years in the explorer above */}
+        <div className="season" role="list" aria-label="Average spending by calendar month">
           {seasons.map((s) => (
-            <span key={s.month} className={peaks.some((p) => p.month === s.month) ? "peak" : ""} title={`${monthName(s.month)}: ${money(s.average)} on average`}>
+            <SeasonLink key={s.month} q={`${undated} every ${fullMonth(s.month)}`.trim()} className={peaks.some((p) => p.month === s.month) ? "peak" : ""}
+              label={`${fullMonth(s.month)}: ${money(s.average)} on average. See every ${fullMonth(s.month)}`} title={`${monthName(s.month)}: ${money(s.average)} on average`}>
               <i style={{ height: `${(s.average / Math.max(...seasons.map((x) => x.average), 1)) * 100}%` }} />
               <em>{monthName(s.month)}</em>
-            </span>
+            </SeasonLink>
           ))}
         </div>
         <p className="caption">{peaks.slice(0, 3).map((p) => `${monthName(p.month)} averages ${compact(p.average)}`).join(", ")}, against {compact(avg)} in a usual month.</p>
@@ -248,5 +256,7 @@ function Patterns({ lines, today, from, to, label }: { lines: AnyLine[]; today: 
     </div>
   );
 }
+
+const fullMonth = (i: number) => ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][i];
 
 const ordinal = (n: number) => `${n}${n % 10 === 1 && n !== 11 ? "st" : n % 10 === 2 && n !== 12 ? "nd" : n % 10 === 3 && n !== 13 ? "rd" : "th"}`;

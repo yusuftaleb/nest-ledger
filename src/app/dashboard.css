@@ -341,6 +341,14 @@ figure { margin: 0; }
   .saved { margin-left: 0; }
 }
 .xbar-was { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; border-radius: 1px; background: var(--ink); opacity: .55; }
+.years-lede { margin: 0 0 var(--space-3); font-size: 15px; color: var(--ink-muted); }
+.years-lede strong { font-size: 20px; font-weight: 600; color: var(--ink); }
+/* one width for every value, so the average line sits at the same place on each row */
+.xbars.years .xbar { grid-template-columns: minmax(0, 11rem) minmax(0, 1fr) 8.5rem; }
+.xbars.years .xbar-value { text-align: right; }
+@container (max-width: 560px) { .xbars.years .xbar { grid-template-columns: minmax(0, 1fr) auto; } }
+.xbar.is-partial .xbar-fill { opacity: .4; }
+.xbar.is-partial .xbar-value { color: var(--ink-muted); }
 .xbar-was-key { display: inline-block; width: 2px; height: 12px; margin-right: 4px; vertical-align: -2px; background: var(--ink); opacity: .55; }
 .explore-table .table th button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
 .explore-table .num { text-align: right; }
@@ -373,7 +381,10 @@ figure { margin: 0; }
 .pattern-list li > .nl-amt { white-space: nowrap; }
 .pattern-list .nl-amt.in { color: var(--egg-deep); }
 .season { display: grid; grid-template-columns: repeat(12, 1fr); align-items: end; gap: 4px; height: 96px; }
-.season span { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; }
+.season a { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; gap: 4px; padding: 0 1px; border-radius: var(--radius-xs); text-decoration: none; }
+.season a:hover { background: var(--surface-sunk); }
+.season a:hover em { color: var(--ink); }
+.season a:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .season i { display: block; width: 100%; max-width: 18px; min-height: 2px; border-radius: 3px 3px 0 0; background: var(--series-prev); }
 .season .peak i { background: var(--series-spend); }
 .season em { font-style: normal; font-size: 11px; line-height: 12px; color: var(--ink-muted); }
@@ -410,10 +421,10 @@ figure { margin: 0; }
 .explore-views .nl-seg { max-width: 100%; }
 .explore-views .nl-seg button { white-space: nowrap; }
 .explore-views .lbl-s { display: none; }
-/* a phone: the five tabs share the row evenly, short names, no scrolling */
+/* a phone: the six tabs in two even rows of three, short names, nothing cut or scrolled at any width or text size */
 @media (max-width: 719px) {
-  .explore-views .nl-seg { display: flex; width: 100%; }
-  .explore-views .nl-seg button { flex: 1 1 auto; padding: 0 6px; font-size: 13px; }
+  .explore-views .nl-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .explore-views .nl-seg button { padding: 0 6px; font-size: 13px; }
   .explore-views .lbl-l { display: none; } .explore-views .lbl-s { display: inline; }
 }
 /* the links keep their place at the right whether or not a comparison key sits on the left */

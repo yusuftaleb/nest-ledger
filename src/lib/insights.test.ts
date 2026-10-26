@@ -5,7 +5,7 @@ import { bucketMonths, buildInsights, buildOutlook, cashflow, changes, compariso
 
 const today = new Date(2026, 9, 25);
 const line = (date: string, amount_cents: number, top_bucket = "Groceries", kind = "spend", merchant = "Superstore", transaction_id = date + merchant) => ({
-  date, month: `${date.slice(0, 7)}-01`, merchant, amount_cents, account: "RBC", bucket_id: top_bucket === "Groceries" ? "groc" : "eat",
+  date, month: `${date.slice(0, 7)}-01`, merchant, amount_cents, account: "Everyday chequing", bucket_id: top_bucket === "Groceries" ? "groc" : "eat",
   bucket: top_bucket, top_bucket, kind, person: "Alex", tags: [] as string[], transaction_id,
 });
 
@@ -134,14 +134,14 @@ test("payoff: avalanche clears the dearest debt first and never costs more than 
 });
 
 test("forecast: today's balance moves with later transactions, then bills and everyday spending come off", () => {
-  const acc = (l: ReturnType<typeof line>) => ({ ...l, account_id: "rbc" });
+  const acc = (l: ReturnType<typeof line>) => ({ ...l, account_id: "chq" });
   const lines = [
     ...["2026-07", "2026-08", "2026-09"].map((m) => acc(line(`${m}-28`, -9500, "Phone & internet", "spend", "Freedom Mobile"))),
     acc(line("2026-10-20", -10000)),
   ];
   const f = forecastMonth({
-    lines, today, accounts: [{ id: "rbc", kind: "chequing", is_debt: false, archived: false }],
-    balances: [{ account_id: "rbc", date: "2026-10-15", balance_cents: 200000 }],
+    lines, today, accounts: [{ id: "chq", kind: "chequing", is_debt: false, archived: false }],
+    balances: [{ account_id: "chq", date: "2026-10-15", balance_cents: 200000 }],
   })!;
   assert.equal(f.today, 190000);
   assert.deepEqual(f.bills, [{ name: "Freedom Mobile", amount: 9500 }]);
@@ -149,13 +149,13 @@ test("forecast: today's balance moves with later transactions, then bills and ev
 });
 
 test("regular income: pay twice a month is still regular, and the forecast expects the rest of it", () => {
-  const acc = (l: ReturnType<typeof line>) => ({ ...l, account_id: "rbc" });
+  const acc = (l: ReturnType<typeof line>) => ({ ...l, account_id: "chq" });
   const pay = ["2026-07", "2026-08", "2026-09", "2026-10"].flatMap((m) => ["16", "30"].map((d) => acc(line(`${m}-${d}`, 120000, "Wages", "income", "TA pay"))))
     .filter((l) => l.date <= "2026-10-25");
   assert.deepEqual(recurring(pay, today, "income").map((b) => b.merchant), ["TA pay"]);
   const f = forecastMonth({
-    lines: pay, today, accounts: [{ id: "rbc", kind: "chequing", is_debt: false, archived: false }],
-    balances: [{ account_id: "rbc", date: "2026-10-24", balance_cents: 100000 }],
+    lines: pay, today, accounts: [{ id: "chq", kind: "chequing", is_debt: false, archived: false }],
+    balances: [{ account_id: "chq", date: "2026-10-24", balance_cents: 100000 }],
   })!;
   assert.deepEqual(f.income, [{ name: "TA pay", amount: 120000 }]);
 });

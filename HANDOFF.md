@@ -108,8 +108,9 @@ An unknown type renders a card listing the known types, so nothing breaks.
 - `src/lib/insights.ts` has the analysis behind the newer cards (comparisons, pace, calendar, merchants, regular bills, savings rate, the bucket × month grid, and the Home and Plan insight sentences). It is tested in `insights.test.ts`.
 - `src/lib/dashboard-source.ts` is how the dashboard reads data. `src/lib/demo.ts` is a made-up household for the dev-only preview at http://localhost:3000/demo, which is handy for screenshots and design work.
 - `DESIGN.md` is the design system (tokens, layout, chart rules).
-- `src/lib/search.ts` is the smart search used by Activity and Analysis: it turns phrases like "tims over $10 last month" or "baby 2025 by Sam" into filters (dates, amounts, buckets, accounts, people, kinds, flags; leftover words search merchants and notes; quotes force text). Tested in `search.test.ts`.
-- Analysis URL: `q` (filters, including dates; none = last 12 months), `vs` (prev | year | none | a period's start date), `view` (breakdown | time | running | heatmap), `g`, `m`, `s`, `dir`. Filters and `vs` reload the page (patterns follow them); the rest is instant in the browser.
+- `src/lib/search.ts` is the smart search used by Activity and Analysis: it turns phrases like "tims over $10 last month" or "baby 2025 by Sam" into filters (dates, amounts, buckets, accounts, people, kinds, flags; leftover words search merchants and notes; quotes force text). "every october", "octobers", "october over the years" or "may each year" keep one month of the year in every year (`monthOfYear`, a `month` chip); "average", "avg", "monthly" or "per month" ask for the typical month (`average`, picks a chart, filters nothing). Tested in `search.test.ts`.
+- Analysis URL: `q` (filters, including dates; none = last 12 months, or all time when `q` says "every <month>" or "average"), `vs` (prev | year | years | none | a period's start date), `view` (breakdown | mix | time | running | heatmap | years; with "every <month>" or "average" the default is years), `g`, `m`, `s`, `dir`.
+- Year by year (`yearByYear` in `src/lib/explore.ts`): one bar per year, that month's total ("every October") or each year's average month, with the average as a hairline. Only months the records wholly cover count (from the first whole month on record), the running month is faded "so far" and left out of the average, and a covered month with nothing in it counts as $0. Analysis moves lines with the household's month rules (`applyMonthRules`, `source.monthRules()`) before anything groups by month, so rent sent early counts in the month it pays for. A month in Patterns' "Months that cost more" fills the explorer with "every <month>" (`season-link.tsx`, an `nl-explore` window event). Filters and `vs` reload the page (patterns follow them); the rest is instant in the browser.
 - `src/lib/explore.ts` is the Analysis maths: the window a view covers, the comparison window, and grouping by any dimension. `src/components/explorer.tsx` runs it in the browser, so filters, grouping and sorting are instant; only a change of dates asks the server.
 - **Today** is the viewer's own date: `src/lib/today.ts` reads the `tz` cookie that `<TimeZoneSync>` sets from the browser (Pacific until it has). The server runs on UTC, so never use `new Date()` for "today" on the server.
 - **Balances now** = each account's latest `balances` row plus every transaction dated after it (`currentBalances` in `insights.ts`). The `balances` card, the Home summary, net worth, goals and the forecast all use it.
@@ -124,7 +125,9 @@ An unknown type renders a card listing the known types, so nothing breaks.
 - `src/lib/household.ts` loads members, accounts, buckets and rules once per request.
 - `src/app/(app)/` contains the screens: Home, Add, Transactions, Plan and Settings.
 
-Checks: `npx next typegen && npx tsc --noEmit`, `npm run lint`, `npm test` and `npm run build`.
+Checks: `npx next typegen && npx tsc --noEmit`, `npm run lint`, `npm test` (unit tests and `supabase/tests/access.test.ts`, the access rules on a throwaway Postgres) and `npm run build`. CI runs them all, plus a secret scan.
+
+**Releases:** bump `version` in `package.json`, then tag the same number (`v0.2.0`) and publish a GitHub release with plain-English notes. Each copy's Settings → About compares its version with the latest release (`src/lib/version.ts`) and says how to update: Sync fork on GitHub. Migrations in a release only ever add; never edit one that has shipped.
 
 ## Rules for whoever works on this
 

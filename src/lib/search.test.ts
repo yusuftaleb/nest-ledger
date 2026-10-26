@@ -112,3 +112,26 @@ test("date spans", () => {
   // "to" alone is still just a word
   assert.equal(parse("transfer to globe").slice.from, undefined);
 });
+
+test("one month across years, and the typical month", () => {
+  for (const q of ["groceries every october", "groceries octobers", "groceries october over the years", "groceries in october each year", "average groceries october over years"]) {
+    const { slice, chips } = parse(q);
+    assert.equal(slice.monthOfYear, 9, q);
+    assert.deepEqual(slice.buckets, ["groc"], q);
+    assert.equal(slice.from, undefined, q);
+    assert.deepEqual(slice.text, [], q);
+    assert.ok(chips.some((c) => c.kind === "month" && c.label === "Every October"), q);
+  }
+  // a bare month is still its latest occurrence, and dates still narrow the years
+  assert.equal(parse("october").slice.monthOfYear, undefined);
+  const since = parse("dining every december since 2023").slice;
+  assert.deepEqual([since.monthOfYear, since.from], [11, "2023-01-01"]);
+  const avg = parse("avg groceries");
+  assert.equal(avg.slice.average, true);
+  assert.equal(parse("groceries per month").slice.average, true);
+  const q = "average groceries every october";
+  assert.equal(withoutChip(q, parse(q).chips.find((c) => c.kind === "average")!), "groceries every october");
+  const oct = { date: "2025-10-04", merchant: "No Frills", amount_cents: -5000, account_id: "chq", splits: [{ amount_cents: -5000, bucket_id: "groc" }] };
+  assert.equal(matchesTransaction(oct, parse("every october").slice, ctx.buckets), true);
+  assert.equal(matchesTransaction({ ...oct, date: "2025-09-30" }, parse("every october").slice, ctx.buckets), false);
+});

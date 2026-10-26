@@ -15,7 +15,7 @@ Rather have an AI agent do it? Open this folder in Claude Code, Codex or Gemini 
 ## 1. Copy Nest Ledger to your GitHub
 
 1. Sign in to [github.com](https://github.com), or make an account.
-2. Open the Nest Ledger repository and click **Fork** (top right), then **Create fork**.
+2. Open [github.com/yusuftaleb/nest-ledger](https://github.com/yusuftaleb/nest-ledger) and click **Fork** (top right), then **Create fork**.
 
 **It worked if** you see a repository called `nest-ledger` under your own name.
 
@@ -82,7 +82,7 @@ Open your site on your phone, then:
 
 ## Getting updates
 
-When a new version of Nest Ledger comes out, your fork on GitHub says "This branch is … commits behind". Click **Sync fork → Update branch**. Vercel puts the new version online by itself, and updates your database on the way.
+When a new version of Nest Ledger comes out, your fork on GitHub says "This branch is … commits behind". Click **Sync fork → Update branch**. Vercel puts the new version online by itself, and updates your database on the way. Settings → About in your site says when a new version is out.
 
 ## If something goes wrong
 
