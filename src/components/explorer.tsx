@@ -165,6 +165,10 @@ export function Explorer({ today: todayIso, earliest, lines, daily, a, b, years 
   // the charts draw themselves in again when what they show changes (dates, filters once they settle, grouping,
   // measure, or new data arriving), not when sorting or showing more rows
   const run = [view, g, m, sent, a.from, a.to, B?.from, lines.length].join("|");
+  // Year by year reads every year whatever the dates say, and its history often lands a moment after it opens:
+  // it draws in once, and the columns then glide to their full height instead of starting over (so the key leaves
+  // out the "every year" flag, which flips the moment that history is asked for)
+  const yearsRun = [m, sent.slice(0, sent.lastIndexOf("|")), month].join("|");
   const aName = datesOf(a);
   const aTitle = a.label.replace(/ \(.*\)$/, "");
   // legends say which is which in words; the real dates sit under the title
@@ -280,7 +284,7 @@ export function Explorer({ today: todayIso, earliest, lines, daily, a, b, years 
           ) : view === "heatmap" ? (
             <Heat inA={inA} a={a} g={g} m={m} say={say} firstLoaded={firstLoaded} ctx={ctx} />
           ) : yearly && (
-            <Years key={run} yearly={yearly} m={m} say={say} month={month} todayIso={todayIso} ctx={ctx} />
+            <Years key={yearsRun} yearly={yearly} m={m} say={say} month={month} todayIso={todayIso} ctx={ctx} />
           )}
         </div>
       </section>
@@ -815,14 +819,14 @@ function Years({ yearly, m, say, month, todayIso, ctx }: {
   const fewer = m === "count" ? "fewer" : "less";
   const head = running && name
     ? <Headline kicker={`Every ${name}`} big={<>{A(running.value)} so far</>}
-        sub={months ? [<>Usual {name}: {A(average)}</>, projected !== null ? <>on pace for about {A(projected)}</> : null] : [`No finished ${name} on record yet`]} />
+        sub={months ? [<>A usual {name} comes to {A(average)}</>, projected !== null ? <>this one is heading for about {A(projected)}</> : null] : [`No finished ${name} on record yet`]} />
     : months
       ? <Headline kicker={name ? `A usual ${name}` : "A usual month"} big={A(average)} sub={[`Over ${months} ${name ? (months === 1 ? "year" : "years") : (months === 1 ? "month" : "months")}`]} />
       : <Headline kicker={name ? `Every ${name}` : "Year by year"} big={A(rows.at(-1)!.value)} sub={[`No finished ${unit} on record yet`]} />;
   return (
     <>
       {head}
-      <ChartTip className="ycols-chart">
+      <ChartTip className="ycols-chart" beside>
         <div className="ycols" role="group" aria-label={name ? `${MEASURES[m]} in ${name}, year by year` : `${MEASURES[m]} in a usual month, year by year`}>
           {months > 0 && <span className="ycols-usual" style={{ "--at": Math.abs(average) / max } as React.CSSProperties} aria-hidden><em>usual {compactOf(m, average)}</em></span>}
           {rows.map((r, i) => {
@@ -831,7 +835,7 @@ function Years({ yearly, m, say, month, todayIso, ctx }: {
             const tip = [
               `${r.long}${r.partial ? ", so far" : ""}`, fmt(r.value),
               months && !r.partial ? (Math.abs(diff) < 1 ? `Same as a usual ${unit}` : `${fmt(Math.abs(diff))} ${diff > 0 ? "more" : fewer} than a usual ${unit}`) : "",
-              isLive && projected !== null ? `On pace for about ${fmt(projected)}` : "",
+              isLive && projected !== null ? `Heading for about ${fmt(projected)}` : "",
             ].filter(Boolean).join("\n");
             return (
               <button key={r.year} type="button" className={`ycol${isLive ? " is-live" : ""}${r.partial ? " is-partial" : ""}`} style={{ "--i": i } as React.CSSProperties}
@@ -840,7 +844,7 @@ function Years({ yearly, m, say, month, todayIso, ctx }: {
                   {isLive && projected !== null && <span className="ycol-proj" style={{ height: h(projected) }} />}
                   <span className="ycol-bar" style={{ height: h(r.value) }} />
                   {usualByToday !== null && !r.partial && <span className="ycol-tick" style={{ bottom: h(byToday(r)) }} />}
-                  <span className="ycol-amt nl-amt" style={{ bottom: h(Math.max(Math.abs(r.value), isLive ? Math.abs(projected ?? 0) : 0)) }}>{compactOf(m, r.value)}</span>
+                  <span className="ycol-amt nl-amt" data-tip-at style={{ bottom: h(Math.max(Math.abs(r.value), isLive ? Math.abs(projected ?? 0) : 0)) }}>{compactOf(m, r.value)}</span>
                 </span>
                 <span className="ycol-year">{r.year}</span>
               </button>
