@@ -6,7 +6,11 @@ import { isoDate } from "./dates.ts";
 
 /** "custom" is any stretch of dates, e.g. the Analysis page's "last 12 months" or "since March". */
 export type PeriodKey = "month" | "quarter" | "year" | "all" | "custom";
-export type Range = { key: PeriodKey; start: string | null; end: string; label: string; months: number };
+export type Range = {
+  key: PeriodKey; start: string | null; end: string; label: string; months: number;
+  /** What the page compares these dates with (Analysis): the earlier dates and their name, or null for nothing. */
+  vs?: { start: string; end: string; label: string } | null;
+};
 
 type LineLike = {
   date: string; month: string; merchant: string; amount_cents: number; account: string; bucket_id: string | null;

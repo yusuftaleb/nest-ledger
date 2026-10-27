@@ -2,12 +2,12 @@ import { LOCALE } from "@/lib/format";
 import { Suspense } from "react";
 import { tidyMerchant } from "@/lib/merchant";
 import { CalendarClock, ChevronDown, Flame, Leaf, Sparkles, TrendingUp } from "lucide-react";
-import { Explorer, type SavedView, type ViewKey } from "./explorer";
+import { Explorer, type SavedView } from "./explorer";
 import { compact, money } from "./charts";
 import { BoardSkeleton } from "./skeleton";
 import { WidgetBoard } from "./widgets";
-import { acrossYears, asGroup, asMeasure, compareWindow, datesOf, windowOf, type ExploreLine, type Window } from "@/lib/explore";
-import { applyMonthRules } from "@/lib/month-rules";
+import { VIEW_KEYS, acrossYears, asGroup, asMeasure, compareWindow, dailySums, datesOf, windowOf, type ExploreLine, type ViewKey, type Window } from "@/lib/explore";
+import { countedLines } from "@/lib/month-rules";
 import { SeasonLink } from "./season-link";
 import { periodRange, type PeriodKey } from "@/lib/dashboard";
 import { matchesLine } from "@/lib/search";
@@ -38,10 +38,13 @@ export async function AnalysisPage({ source, params, saved }: { source: Dashboar
   const a = windowOf(slice, today);
 
   // what kind of stretch the dates are, so "compared with" can offer the same kind earlier on
-  const span = slice.from && slice.to && slice.from !== "1900-01-01" && slice.from.endsWith("-01") && slice.to.endsWith("-01")
+  // no dates typed means this month, which is a month like any other
+  const plainMonth = !slice.from && !acrossYears(slice);
+  const span = plainMonth ? 1 : slice.from && slice.to && slice.from !== "1900-01-01" && slice.from.endsWith("-01") && slice.to.endsWith("-01")
     ? (parseIso(slice.to).getFullYear() - parseIso(slice.from).getFullYear()) * 12 + parseIso(slice.to).getMonth() - parseIso(slice.from).getMonth() : 0;
-  const kind: PeriodKey | null = span === 1 ? "month" : span === 3 && (parseIso(slice.from!).getMonth() % 3 === 0) ? "quarter" : span === 12 && slice.from!.endsWith("-01-01") ? "year" : null;
-  const vs = params.vs ?? "prev";
+  const kind: PeriodKey | null = plainMonth || span === 1 ? "month" : span === 3 && (parseIso(slice.from!).getMonth() % 3 === 0) ? "quarter" : span === 12 && slice.from!.endsWith("-01-01") ? "year" : null;
+  // nothing to compare with until someone asks
+  const vs = params.vs ?? "none";
   let b: Window | null;
   // a custom comparison: "2026-01-01..2026-03-31", both days included
   const custom = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(vs);
@@ -88,32 +91,46 @@ export async function AnalysisPage({ source, params, saved }: { source: Dashboar
     b = { ...b, label: yearsOf(b.from, b.to) };
   }
 
+  // Insights compare with exactly what the explorer compares with, named the way a sentence reads
+  const insightsVs = !b?.from ? null : {
+    start: b.from, end: b.to,
+    label: vs === "prev" ? (kind ? `${kind === "month" ? "the month" : kind === "quarter" ? "the quarter" : "the year"} before` : "the period before")
+      : vs === "year" || vs === "years" ? "the same days last year" : b.label,
+  };
+
   // one read covers the view, the comparison and two years of history for the patterns
   const twoYears = isoDate(new Date(today.getFullYear() - 2, today.getMonth(), 1));
-  const from = a.from === null ? null : [a.from, b?.from, twoYears, years.at(-1)?.from].filter(Boolean).sort()[0]!;
+  const view = (VIEW_KEYS as readonly string[]).includes(params.view ?? "") ? params.view as ViewKey : acrossYears(slice) ? "years" : "breakdown";
+  // one calendar month: the pace band and the weight badge read the 12 months before it, day by day
+  const oneMonth = a.from?.endsWith("-01") && a.to <= addMonths(a.from, 1) ? a.from : null;
+  const bandFrom = oneMonth ? addMonths(oneMonth, -12) : null;
+  const from = a.from === null ? null : [a.from, b?.from, twoYears, years.at(-1)?.from, bandFrom].filter(Boolean).sort()[0]!;
   const until = isoDate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1));
-  const [all, views, rules] = await Promise.all([source.lines(from, a.to > until ? a.to : until), saved, source.monthRules?.() ?? []]);
-  // rent sent in the last days of a month, or income paid ahead, counts in the month it is for
-  const timed = applyMonthRules(all, rules).lines;
-  const lower = a.from === null ? null : [a.from, b?.from, years.at(-1)?.from].filter(Boolean).sort()[0]!;
+  // year by year looks across every year on record; the rest of the page keeps to its own dates either way
+  const [loaded, views, rules] = await Promise.all([source.lines(view === "years" ? null : from, a.to > until ? a.to : until), saved, source.monthRules?.() ?? []]);
+  const all = from ? loaded.filter((l) => l.date >= from) : loaded;
+  // rent sent in the last days of a month, or income paid ahead, counts in the month it is for (on the 1st)
+  const everything = countedLines(loaded, rules);
+  const timed = from ? everything.filter((l) => l.date >= from) : everything;
+  const lower = a.from === null || view === "years" ? null : [a.from, b?.from, years.at(-1)?.from].filter(Boolean).sort()[0]!;
   const upper = [a.to, b?.to].filter(Boolean).sort().at(-1)!;
-  const lines: ExploreLine[] = timed.filter((l) => (!lower || l.date >= lower) && l.date < upper).map((l) => ({
-    month: l.month, date: l.date, merchant: l.merchant, amount_cents: l.amount_cents, bucket_id: l.bucket_id, bucket: l.bucket, top_bucket: l.top_bucket,
+  const lines: ExploreLine[] = everything.filter((l) => (!lower || l.date >= lower) && l.date < upper).map((l) => ({
+    month: l.month, date: l.date, paid_on: l.paid_on, merchant: l.merchant, amount_cents: l.amount_cents, bucket_id: l.bucket_id, bucket: l.bucket, top_bucket: l.top_bucket,
     kind: l.kind, account_id: l.account_id, account: l.account, person: l.person, transaction_id: l.transaction_id,
   }));
   // the same filters shape the patterns
   const filtered = timed.filter((l) => matchesLine(l, { ...slice, from: undefined, to: undefined }, { buckets: source.buckets, members: source.members }));
+  const daily = oneMonth && bandFrom ? dailySums(filtered, bandFrom, a.to) : null;
   const sKey = SORTS.find((k) => k === params.s) ?? "value";
   // the cards read up to the last day of the chosen dates (today, unless the dates are in the past)
   const anchor = a.to < until ? parseIso(addDaysIso(a.to, -1)) : today;
-  const view = (["breakdown", "mix", "time", "running", "heatmap", "years"] as ViewKey[]).find((v) => v === params.view) ?? (acrossYears(slice) ? "years" : "breakdown");
   // the months in "Months that cost more" open every such month, keeping the filters but not the dates
   const undated = chips.filter((c) => c.kind === "date" || c.kind === "month").reduce((s, c) => withoutChip(s, c), q);
 
   return (
     <>
       <header className="page-head"><h1 className="title">Analysis</h1></header>
-      <Explorer today={isoDate(today)} earliest={source.earliest} lines={lines} a={a} b={b} years={years} vs={vs} vsOptions={vsOptions} ctx={ctx} saved={views}
+      <Explorer today={isoDate(today)} earliest={source.earliest} lines={lines} daily={daily} a={a} b={b} years={years} vs={vs} vsOptions={vsOptions} ctx={ctx} saved={views}
         initial={{ q, g: asGroup(params.g), m: asMeasure(params.m), view, s: sKey, dir: params.dir === "asc" ? "asc" : "desc" }} />
       <PageSection id="patterns" title="Patterns">
         <Patterns lines={filtered} today={today} from={a.from ?? "1900-01-01"} to={a.to} label={a.label} undated={undated} />
@@ -121,9 +138,9 @@ export async function AnalysisPage({ source, params, saved }: { source: Dashboar
       <PageSection id="insights" title="Insights">
         <Suspense fallback={<BoardSkeleton summary={false} />}>
           {/* the same dates and filters as the rest of the page: the year runs up to the end of the chosen dates */}
-          <WidgetBoard source={withLoadedLines(source, all, from, a.to > until ? a.to : until)} page="analysis" period="month"
+          <WidgetBoard source={{ ...withLoadedLines(source, all, from, a.to > until ? a.to : until), monthRules: async () => rules }} page="analysis" period="month"
             today={anchor} live={anchor.getTime() === today.getTime()} filter={{ ...slice, from: undefined, to: undefined }}
-            range={{ key: kind ?? "custom", start: a.from, end: a.to, label: a.label.replace(/ \(.*\)$/, ""), months: span || 12 }} />
+            range={plainMonth ? { ...periodRange("month", today), vs: insightsVs } : { key: kind ?? "custom", start: a.from, end: a.to, label: a.label.replace(/ \(.*\)$/, ""), months: span || 12, vs: insightsVs }} />
         </Suspense>
       </PageSection>
     </>
@@ -200,7 +217,7 @@ function Patterns({ lines, today, from, to, label, undated }: { lines: AnyLine[]
     key: "once", icon: <Sparkles />, title: "One-off costs", gist: found(once.items.length),
     body: (
       <>
-        <p className="pattern-lede">A typical month in {label.toLowerCase().startsWith("last") ? "this stretch" : label} cost <strong className="nl-amt">{money(once.typical)}</strong> without them, <span className="nl-amt">{money(once.withAll)}</span> with.</p>
+        <p className="pattern-lede">A typical month in {/^(last|this) /i.test(label) ? "this stretch" : label} cost <strong className="nl-amt">{money(once.typical)}</strong> without them, <span className="nl-amt">{money(once.withAll)}</span> with.</p>
         <ul className="pattern-list">
           {once.items.slice(0, 4).map((o) => (
             <li key={o.merchant + o.date}><span>{tidyMerchant(o.merchant)}<span className="caption">{date(o.date)} · {o.bucket}</span></span><span className="nl-amt">{money(o.amount)}</span></li>

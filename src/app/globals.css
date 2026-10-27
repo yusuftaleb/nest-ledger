@@ -311,14 +311,14 @@ a { color: inherit; text-decoration: none; }
 .logo-mark { display: block; flex: none; }
 
 .search { position: relative; }
-.search .nl-icon { position: absolute; left: 12px; top: 12px; color: var(--ink-muted); pointer-events: none; }
+.search .nl-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--ink-muted); pointer-events: none; }
 .search .input { padding-left: 40px; width: 100%; min-width: 0; box-sizing: border-box; }
 .chips { display: flex; gap: var(--space-2); overflow-x: auto; scrollbar-width: none; }
 
 /* smart search: the box, then what it understood as removable chips */
 .smart-search { display: grid; gap: var(--space-2); }
 .smart-search[data-pending] .search .nl-icon { color: var(--accent-text); }
-.search-clear { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink-muted); cursor: pointer; }
+.search-clear { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink-muted); cursor: pointer; }
 .search-clear:hover { background: var(--surface-sunk); color: var(--ink); }
 .search .input { padding-right: 44px; }
 .chip-row { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }

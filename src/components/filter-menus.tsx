@@ -19,7 +19,7 @@ type Ctx = Omit<SearchContext, "today" | "buckets"> & { buckets: { id: string; n
  */
 type Props = {
   q: string; setQ: (q: string) => void; ctx: Ctx; today: Date; earliest?: string | null;
-  /** What no date filter means on this page: "Any time" in Activity, "Last 12 months" in Analysis. */
+  /** What no date filter means on this page: "Any time" in Activity, "This month" in Analysis. */
   defaultDates?: string;
 };
 

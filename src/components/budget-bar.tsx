@@ -7,18 +7,20 @@ import { money } from "./charts";
  * green below 80%, orange from 80% and red past 100%. The state is also in words ("$32 over"), never colour alone.
  * Stack them inside one card; they divide themselves with hairlines.
  */
-export function BudgetBar({ name, icon, color, seed, spent, budget, carry = 0, index = 0, href }: {
+export function BudgetBar({ name, icon, color, seed, spent, budget, carry = 0, index = 0, href, extra }: {
   name: string; icon?: string | null; color?: string | null; seed?: string; spent: number; budget: number;
   /** Already in `budget`: what rolled over from last month (negative when last month went over). */
   carry?: number; index?: number;
   /** Opens this budget's transactions. */
   href?: string;
+  /** Hidden until the list's "Show more" is pressed. */
+  extra?: boolean;
 }) {
   const left = budget - spent;
   const state = left < 0 ? "over" : spent >= budget * 0.8 ? "warn" : "ok";
   const scale = Math.max(spent, budget, 1);
   return (
-    <div className="nl-budget">
+    <div className="nl-budget" data-extra={extra || undefined}>
       <div className="nl-budget-top">
         {href
           ? <Link href={href} scroll={false} className="nl-budget-name num-link"><BucketIcon icon={icon} color={color} seed={seed} small />{name}</Link>

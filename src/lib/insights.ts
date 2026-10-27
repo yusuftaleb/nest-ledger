@@ -23,6 +23,8 @@ export function comparison(range: Range, today: Date): { now: { start: string; e
   if (!range.start) return null;
   const tomorrow = addDays(isoDate(today), 1);
   const end = tomorrow < range.end ? tomorrow : range.end;
+  // the page already chose what to compare with, so every sentence uses that
+  if (range.vs !== undefined) return range.vs && { now: { start: range.start, end }, before: { start: range.vs.start, end: range.vs.end }, label: range.vs.label };
   const s = parse(range.start);
   const months = range.months || 1;
   const prevStart = isoDate(new Date(s.getFullYear(), s.getMonth() - months, 1));
@@ -136,6 +138,10 @@ export function cashflow(lines: LineLike[], months: string[]): Flow[] {
     return { month, income, spend, net: income - spend };
   });
 }
+
+/** A period's name at the end of a sentence: "last month", "in the last 12 months", "in September". */
+const when = (label: string) => /^(this|last) (week|month|quarter|year)$/i.test(label) ? label.toLowerCase()
+  : /^last \d/i.test(label) ? `in the ${label.toLowerCase()}` : `in ${label}`;
 
 export type Insight = { tone: "good" | "warn" | "info"; icon: string; text: string };
 
@@ -256,7 +262,7 @@ export function buildInsights(input: {
     const kept = income - spend;
     out.push(kept >= 0
       ? { tone: "good", icon: "piggy-bank", text: `You kept ${Math.round((kept / income) * 100)}% of what came in (${money(kept)}).` }
-      : { tone: "warn", icon: "scale", text: `${money(-kept)} more went out than came in for ${range.label}.` });
+      : { tone: "warn", icon: "scale", text: `${when(range.label).replace(/^\w/, (c) => c.toUpperCase())}, ${money(-kept)} more went out than came in.` });
   }
 
   // the single biggest purchase, a useful sanity check
@@ -369,6 +375,9 @@ export function buildOutlook(input: { lines: LineLike[]; today: Date; netWorth: 
   if (months.length < 3) return [];
   const money = (c: number) => formatCents(Math.round(c / 100) * 100, { sign: false, trim: true });
   const name = (m: string) => parse(m).toLocaleDateString(LOCALE, { month: "long" });
+  // the finished months these sentences cover, named, so they never read as the dates chosen on the page
+  const short = (m: string) => parse(m).toLocaleDateString(LOCALE, { month: "short", year: "numeric" });
+  const span = `${short(months[0])} to ${short(months.at(-1)!)}`;
   const flow = cashflow(lines, months);
   const income = flow.reduce((s, f) => s + f.income, 0), spend = flow.reduce((s, f) => s + f.spend, 0);
   const avgIn = income / months.length, avgOut = spend / months.length;
@@ -378,8 +387,8 @@ export function buildOutlook(input: { lines: LineLike[]; today: Date; netWorth: 
   if (income > 0) {
     const kept = income - spend;
     out.push(kept >= 0
-      ? { tone: "good", icon: "piggy-bank", text: `Over the last ${months.length} months you kept ${Math.round((kept / income) * 100)}% of what came in, ${money(kept)} in all.` }
-      : { tone: "warn", icon: "scale", text: `Over the last ${months.length} months, ${money(-kept)} more went out than came in.` });
+      ? { tone: "good", icon: "piggy-bank", text: `From ${span} you kept ${Math.round((kept / income) * 100)}% of what came in, ${money(kept)} in all.` }
+      : { tone: "warn", icon: "scale", text: `From ${span}, ${money(-kept)} more went out than came in.` });
   }
   if (netWorth !== null && netWorth > 0 && avgOut > 0) {
     const cover = netWorth / avgOut;
@@ -404,7 +413,7 @@ export function buildOutlook(input: { lines: LineLike[]; today: Date; netWorth: 
   }
   const inPeriod = lines.filter((l) => months.includes(l.month));
   const costs = groupLines(inPeriod, "top_bucket", "spend").filter((g) => g.key !== "Uncategorized");
-  if (costs[0] && spend > 0) out.push({ tone: "info", icon: "chart-pie", text: `${costs[0].key} is the biggest cost: ${money(costs[0].value)} over ${months.length} months, ${Math.round((costs[0].value / spend) * 100)}% of all spending.` });
+  if (costs[0] && spend > 0) out.push({ tone: "info", icon: "chart-pie", text: `${costs[0].key} is the biggest cost: ${money(costs[0].value)} from ${span}, ${Math.round((costs[0].value / spend) * 100)}% of all spending.` });
   const sources = groupLines(inPeriod, "top_bucket", "income").filter((g) => g.value > 0);
   if (sources.length >= 2 && income > 0) {
     const pct = (v: number) => Math.round((v / income) * 100);

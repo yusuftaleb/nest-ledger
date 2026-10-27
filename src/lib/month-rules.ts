@@ -35,3 +35,13 @@ export function applyMonthRules<L extends { date: string; month: string; merchan
   });
   return { lines: out, notes };
 }
+
+/**
+ * The lines every chart and card counts: each one a month rule moves is dated the 1st of the month it pays for, so
+ * a stretch of dates, a month and a year all agree on it. `paid_on` keeps the day it really landed, to show.
+ * Balances never use these: money that left on the 29th left on the 29th.
+ */
+export function countedLines<L extends Parameters<typeof applyMonthRules>[0][number]>(lines: L[], rules: MonthRule[]): (L & { paid_on?: string })[] {
+  if (!rules.length) return lines;
+  return applyMonthRules(lines, rules).lines.map((l, i) => (l.month === lines[i].month ? l : { ...l, date: l.month, paid_on: lines[i].date }));
+}

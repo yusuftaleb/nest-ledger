@@ -12,6 +12,10 @@ export const GROUPS = {
 } as const;
 export const MEASURES = { spend: "Spending", income: "Money in", net: "Net", count: "Transactions" } as const;
 
+/** The explorer's charts, in tab order. */
+export const VIEW_KEYS = ["breakdown", "flow", "mix", "time", "running", "heatmap", "years"] as const;
+export type ViewKey = (typeof VIEW_KEYS)[number];
+
 export type GroupKey = keyof typeof GROUPS;
 export type MeasureKey = keyof typeof MEASURES;
 /** No comparison, the previous period, or the same time last year. */
@@ -38,7 +42,8 @@ export function windowOf(slice: { from?: string; to?: string; dateLabel?: string
     const m = slice.monthOfYear;
     return { from: null, to: tomorrow, label: m === undefined ? "All time" : `Every ${parseIso(`2000-${String(m + 1).padStart(2, "0")}-01`).toLocaleDateString(LOCALE, { month: "long" })}` };
   }
-  return { from: isoDate(new Date(today.getFullYear(), today.getMonth() - 11, 1)), to: tomorrow, label: "Last 12 months" };
+  // no dates asked for: this month so far
+  return { from: isoDate(new Date(today.getFullYear(), today.getMonth(), 1)), to: tomorrow, label: "This month" };
 }
 
 /** The stretch to compare with: the same length just before, or the same dates a year earlier. */
@@ -51,6 +56,15 @@ export function compareWindow(w: Window, mode: CompareKey): Window | null {
     const a = parseIso(w.from), b = parseIso(w.to);
     const n = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth();
     return { from: addMonths(w.from, -n), to: w.from, label: "the period before" };
+  }
+  // from the 1st up to today steps back by whole months too, to the same day: October so far against
+  // September's first 25 days, the last 12 months against the 12 before them up to the same date
+  if (w.from.endsWith("-01")) {
+    const a = parseIso(w.from), b = parseIso(w.to);
+    const n = (b.getFullYear() - a.getFullYear()) * 12 + b.getMonth() - a.getMonth() + 1;
+    const from = addMonths(w.from, -n);
+    const to = addDaysIso(from, Math.round((b.getTime() - a.getTime()) / 86_400_000));
+    return { from, to: to < w.from ? to : w.from, label: "the period before" };
   }
   const days = Math.round((parseIso(w.to).getTime() - parseIso(w.from).getTime()) / 86_400_000);
   return { from: isoDate(new Date(parseIso(w.from).getTime() - days * 86_400_000)), to: w.from, label: "the period before" };
@@ -67,6 +81,8 @@ export function monthsIn(w: Window, lines: { date: string }[]): number {
 export type ExploreLine = {
   /** The month it counts for, YYYY-MM-01: its own, or the next one when a month rule says so (rent sent early). */
   month?: string;
+  /** The day it really landed, when a month rule dated it the 1st of the month it pays for. */
+  paid_on?: string;
   date: string; merchant: string; amount_cents: number; bucket_id: string | null; bucket: string; top_bucket: string;
   kind: string; account_id: string; account: string; person: string | null; transaction_id: string;
 };
@@ -261,4 +277,103 @@ export function yearByYear(lines: ExploreLine[], m: MeasureKey, o: { from: strin
   });
   const done = [...years.values()].flatMap((r) => r.done);
   return { rows, average: done.length ? done.reduce((a, b) => a + b, 0) / done.length : 0, months: done.length };
+}
+
+/** Each day's spending, money in and transactions (spending and money in only), for the pace band and the weight badge. */
+export type Daily = Record<string, [spend: number, income: number, transactions: number]>;
+
+export function dailySums(lines: ExploreLine[], from: string, to: string): Daily {
+  const out: Daily = {};
+  const seen = new Map<string, Set<string>>();
+  for (const l of lines) {
+    if (l.date < from || l.date >= to || (l.kind !== "spend" && l.kind !== "income")) continue;
+    const d = (out[l.date] ??= [0, 0, 0]);
+    d[0] += measureOf(l, "spend");
+    d[1] += measureOf(l, "income");
+    const tx = seen.get(l.date) ?? seen.set(l.date, new Set()).get(l.date)!;
+    if (!tx.has(l.transaction_id)) { tx.add(l.transaction_id); d[2] += 1; }
+  }
+  return out;
+}
+
+const dayValue = (d: Daily[string] | undefined, m: MeasureKey) =>
+  !d ? 0 : m === "income" ? d[1] : m === "net" ? d[1] - d[0] : m === "count" ? d[2] : d[0];
+
+/** The first day of each month in [first, before), newest first, at most n. */
+function monthsBefore(month: string, first: string | null, n: number): string[] {
+  const out: string[] = [];
+  for (let k = addMonths(month, -1); out.length < n && (!first || k >= first); k = addMonths(k, -1)) out.push(k);
+  return out;
+}
+
+/** The first whole month on record: the earliest date's month when it starts on the 1st, otherwise the month after. */
+export const firstWholeMonth = (earliest: string | null) =>
+  !earliest ? null : earliest.endsWith("-01") ? earliest : addMonths(`${earliest.slice(0, 7)}-01`, 1);
+
+/** The running total of a month, one number per day of it. */
+export function monthRun(daily: Daily, month: string, m: MeasureKey): number[] {
+  const out: number[] = [];
+  let total = 0;
+  for (let d = month, end = addMonths(month, 1); d < end; d = addDaysIso(d, 1)) { total += dayValue(daily[d], m); out.push(total); }
+  return out;
+}
+
+/**
+ * What a usual month looks like day by day: the lowest, highest and average running total of the last n finished
+ * months, stretched to the length of `month` (a shorter month holds its last total). Null with fewer than 3 months.
+ */
+export function usualBand(daily: Daily, month: string, m: MeasureKey, first: string | null, n = 6) {
+  const runs = monthsBefore(month, first, n).map((k) => monthRun(daily, k, m));
+  if (runs.length < 3) return null;
+  const days = monthRun(daily, month, m).length;
+  const at = (r: number[], i: number) => r[Math.min(i, r.length - 1)];
+  const low: number[] = [], high: number[] = [], mean: number[] = [];
+  for (let i = 0; i < days; i++) {
+    const v = runs.map((r) => at(r, i));
+    low.push(Math.min(...v)); high.push(Math.max(...v)); mean.push(v.reduce((a, b) => a + b, 0) / v.length);
+  }
+  return { low, high, mean, months: runs.length };
+}
+
+export type Weight = { level: "low" | "mid" | "high"; /** this month by the day */ now: number; /** the usual month by the same day */ usual: number; months: number };
+
+/**
+ * How this month compares with the usual month at the same day of the month: the average of the same months the
+ * pace band uses. More than a tenth under it is light, more than a tenth over it heavy. Null with fewer than 3 months.
+ */
+export function weightOf(daily: Daily, month: string, day: number, m: MeasureKey, first: string | null, n = 6): Weight | null {
+  const past = monthsBefore(month, first, n).map((k) => { const r = monthRun(daily, k, m); return r[Math.min(day, r.length) - 1]; });
+  if (past.length < 3) return null;
+  const now = monthRun(daily, month, m)[day - 1];
+  const usual = past.reduce((a, b) => a + b, 0) / past.length;
+  return { level: now < usual * 0.9 ? "low" : now > usual * 1.1 ? "high" : "mid", now, usual, months: past.length };
+}
+
+/** The measure over a month's lines up to and including one day of the month. */
+export const upToDay = (lines: ExploreLine[], day: number, m: MeasureKey) =>
+  totals(lines.filter((l) => Number(l.date.slice(8, 10)) <= day), m).value;
+
+export type FlowNode = { key: string; label: string; value: number; /** "left", "aside" or "short" for the made-up nodes */ role?: string };
+
+/**
+ * Where the money that came in went: money in by bucket on one side; spending by bucket, money set aside in savings
+ * and goals, and what is left on the other. When more went out than came in, the gap is its own source.
+ */
+export function flowOf(lines: ExploreLine[], o: { sources?: number; targets?: number } = {}) {
+  const top = (rows: Row[], n: number): FlowNode[] => {
+    const sorted = rows.filter((r) => r.value > 0).sort((a, b) => b.value - a.value);
+    const head = sorted.slice(0, n).map((r) => ({ key: r.key, label: r.label, value: r.value }));
+    const rest = sorted.slice(n).reduce((s, r) => s + r.value, 0);
+    return rest > 0 ? [...head, { key: "__other", label: "Everything else", value: rest }] : head;
+  };
+  const sources = top(groupBy(lines, "top_bucket", "income"), o.sources ?? 4);
+  const targets = top(groupBy(lines, "top_bucket", "spend"), o.targets ?? 6);
+  const income = sources.reduce((s, r) => s + r.value, 0);
+  const spend = targets.reduce((s, r) => s + r.value, 0);
+  const aside = Math.max(0, -lines.filter((l) => l.kind === "saving" || l.kind === "goal").reduce((s, l) => s + l.amount_cents, 0));
+  const left = income - spend - aside;
+  if (aside > 0) targets.push({ key: "__aside", label: "Set aside", value: aside, role: "aside" });
+  if (left > 0) targets.push({ key: "__left", label: "Left", value: left, role: "left" });
+  if (left < 0) sources.push({ key: "__short", label: "Overspent", value: -left, role: "short" });
+  return { sources, targets, income, out: spend + aside, left };
 }

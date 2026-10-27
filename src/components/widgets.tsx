@@ -1,6 +1,7 @@
 import { CURRENCY, LOCALE } from "@/lib/format";
 import Link from "next/link";
 import { tidyMerchant } from "@/lib/merchant";
+import { ShowMore } from "@/components/show-more";
 import { ArrowRight, Bell, Check, Sprout, TrendingDown, TrendingUp } from "lucide-react";
 import { Columns, Legend, Matrix, PaceChart, PairedColumns, SignedColumns, SpendCalendar, ChartTable, compact, money } from "@/components/charts";
 import { bucketColor, iconProps } from "@/components/icons";
@@ -38,6 +39,7 @@ import type { AiRead } from "@/lib/ai-insights";
 import { getZone } from "@/lib/today";
 import { NotABill } from "@/components/not-a-bill";
 import { dueSoon } from "@/lib/reminders";
+import { countedLines } from "@/lib/month-rules";
 
 // Draws the `widgets` rows for a page. Adding or changing a dashboard card is a database edit:
 // see the comment on the widgets table (and HANDOFF.md) for the types and spec keys.
@@ -155,21 +157,23 @@ export async function WidgetBoard({ source: s, page, period, today = new Date(),
   const start = since && wanted !== null && since < wanted ? since : wanted;
   // Codex reads the whole household as of today, so its card shows only when the page does too
   const wantsAi = live && has("ai") && !narrows(filter);
-  const [loaded, budgets, txs, goalLines, owed, ai] = await Promise.all([
+  const [loaded, budgets, txs, goalLines, owed, ai, rules] = await Promise.all([
     s.lines(start, end),
     has("budgets", "summary", "insights", "outlook", "pace") ? s.budgets() : [],
     has("recent", "review", "summary") ? s.transactions(300, live ? undefined : selected) : [],
     has("goals") ? s.linesOf(goals.map((g) => g.id)) : [],
     has("owed") ? s.owed() : [],
     wantsAi && s.ai ? s.ai() : null,
+    s.monthRules?.() ?? [],
   ]);
   const balances = allBalances;
   // the page's own filters (Analysis) narrow every card; balances and goals are never filtered
   const narrow = (ls: Line[]) => filter ? ls.filter((l) => matchesLine(l, { ...filter, from: undefined, to: undefined }, { buckets: s.buckets, members: s.members })) : ls;
-  const lines = narrow(loaded);
+  // rent sent early and pay that arrives ahead count in the month they're for, on every card
+  const lines = narrow(countedLines(loaded, rules));
   // a budget that rolls over needs the year before the month on screen; read only when one does
   const carryFrom = selected.key === "month" && selected.start && budgets.some((b) => b.attrs?.rollover === true) ? isoDate(new Date(parseIso(selected.start).getFullYear(), parseIso(selected.start).getMonth() - 12, 1)) : null;
-  const carryLines = !carryFrom ? [] : start !== null && start <= carryFrom ? lines : narrow(await s.lines(carryFrom, selected.start!));
+  const carryLines = !carryFrom ? [] : start !== null && start <= carryFrom ? lines : narrow(countedLines(await s.lines(carryFrom, selected.start!), rules));
   const asOf = isoDate(today);
   // today's balances read every loaded line, not the filtered ones: a filter or a past period never changes what's in the bank
   const now = currentBalances({ lines: loaded.filter((l) => l.date <= asOf), accounts: s.accounts, balances: balances.filter((b) => b.date <= asOf) });
@@ -769,24 +773,19 @@ ${b.paid !== null ? `Paid ${money(b.paid)}` : `About ${money(b.amount)} around $
           <div className="bill-axis"><span>{month} 1</span><span>{month} {days}</span></div>
         </ChartTip>
       </div>
-      <BillList bills={[...due, ...paid].slice(0, 5)} day={day} month={month} />
-      {bills.length > 5 && (
-        <details className="more">
-          <summary>Show {bills.length - 5} more</summary>
-          <BillList bills={[...due, ...paid].slice(5)} day={day} month={month} />
-        </details>
-      )}
+      <BillList bills={[...due, ...paid]} shown={5} day={day} month={month} />
+      {bills.length > 5 && <ShowMore count={bills.length - 5} />}
     </>
   );
 }
 
-function BillList({ bills, day, month }: { bills: ReturnType<typeof recurring>; day: number; month: string }) {
+function BillList({ bills, shown = Infinity, day, month }: { bills: ReturnType<typeof recurring>; shown?: number; day: number; month: string }) {
   return (
-    <ul className="bills">
-      {bills.map((b) => {
+    <ul className="bills" data-more="less">
+      {bills.map((b, i) => {
         const late = b.paid === null && b.day < day;
         return (
-          <li key={b.merchant} className={b.paid !== null ? "paid" : ""}>
+          <li key={b.merchant} className={b.paid !== null ? "paid" : ""} data-extra={i >= shown || undefined}>
             <span className="bill-day"><span>{month}</span>{b.paid !== null && b.paidOn ? Number(b.paidOn.slice(8, 10)) : b.day}</span>
             <Link href={listHref(`"${b.merchant.replace(/"/g, "")}"`, tidyMerchant(b.merchant))} scroll={false} className="bill-name" title={b.merchant}>{tidyMerchant(b.merchant)}<span className="caption">{b.bucket}</span></Link>
             <span className="bill-amt">
@@ -1048,9 +1047,9 @@ function Budgets({ spec, ctx }: { spec: Spec; ctx: Ctx }) {
   const over = rows.filter((r) => r.spent > r.budget).length;
   const near = rows.filter((r) => r.spent <= r.budget && r.spent >= r.budget * 0.8).length;
   const limit = spec.limit === 0 ? rows.length : Number(spec.limit) || 5;
-  const first = rows.slice(0, limit), rest = rows.slice(limit);
   const bar = ({ b, budget, spent, carry }: (typeof rows)[number], i: number) => (
-    <BudgetBar key={b.id} name={b.name} icon={b.icon} color={b.color} seed={b.id} spent={spent} budget={budget} carry={carry} index={i}
+    <BudgetBar key={b.id} name={b.name} icon={b.icon} color={b.color} seed={b.id} spent={spent} budget={budget} carry={carry}
+      index={i < limit ? i : i - limit} extra={i >= limit}
       href={listHref(`${b.name} spending ${datesQuery(range)}`, `${b.name}, ${range.label}`)} />
   );
   return (
@@ -1060,13 +1059,8 @@ function Budgets({ spec, ctx }: { spec: Spec; ctx: Ctx }) {
         {over > 0 && <span className="nl-badge nl-badge-over">{over} over</span>}
         {near > 0 && <span className="nl-badge nl-badge-review">{near} close</span>}
       </p>
-      <div className="nl-budgets">{first.map(bar)}</div>
-      {rest.length > 0 && (
-        <details className="more">
-          <summary>Show {rest.length} more</summary>
-          <div className="nl-budgets">{rest.map((r, i) => bar(r, i + limit))}</div>
-        </details>
-      )}
+      <div className="nl-budgets" data-more="less">{rows.map(bar)}</div>
+      {rows.length > limit && <ShowMore count={rows.length - limit} />}
     </>
   );
 }

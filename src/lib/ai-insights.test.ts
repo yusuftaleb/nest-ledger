@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildFacts, readReply, readStored, type Fact } from "./ai-insights.ts";
-import { applyMonthRules } from "./month-rules.ts";
+import { applyMonthRules, countedLines } from "./month-rules.ts";
 
 const facts: Fact[] = [
   { id: "t1", value: "Groceries", about: "a bucket's name" },
@@ -79,6 +79,17 @@ test("rent sent early and income paid ahead count in the month they're for", () 
   assert.match(notes[0], /^Housing: /);
   assert.match(notes[1], /^Scholarships & grants: /);
   assert.ok(notes.every((n) => !/\d|landlord|trust/i.test(n)));
+});
+
+test("cards and charts date a moved payment the 1st of its month, and keep the day it landed", () => {
+  const line = (date: string, merchant: string) => ({ date, month: `${date.slice(0, 7)}-01`, merchant, amount_cents: -150000, bucket: "Housing", account_id: "chq" });
+  const rules = [{ merchant: "landlord", account_id: null, attrs: { from_day: 25 } }];
+  const out = countedLines([line("2026-07-02", "Landlord"), line("2026-07-29", "Landlord"), line("2026-07-29", "Grocer")], rules);
+  assert.deepEqual(out.map((l) => [l.date, l.month, l.paid_on]), [
+    ["2026-07-02", "2026-07-01", undefined], ["2026-08-01", "2026-08-01", "2026-07-29"], ["2026-07-29", "2026-07-01", undefined],
+  ]);
+  const plain = [line("2026-07-29", "Landlord")];
+  assert.equal(countedLines(plain, []), plain);
 });
 
 test("a payment moved into this month counts from its first day", () => {
